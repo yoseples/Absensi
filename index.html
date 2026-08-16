@@ -1813,14 +1813,6 @@
         }
     }
 
-    function switchLoginTab(tab) {
-        document.getElementById('loginError').classList.add('hidden');
-        const btnSiswa = document.getElementById('btnSiswaTab');
-        const btnAdmin = document.getElementById('btnAdminTab');
-        
-        const activeClass = "bg-white text-indigo-600 shadow-sm";
-        const inactiveClass = "text-gray-500 hover:text-gray-700 hover:bg-gray-200/60";
-
     function togglePasswordVisibility() {
         const passInput = document.getElementById('loginPassword');
         const eyeIcon = document.getElementById('eyeIcon');
@@ -1842,11 +1834,11 @@
     }
 
     function handleUnifiedLogin(event) {
-        event.preventDefault();
+        if (event) event.preventDefault();
         showLoading();
         
-        const username = document.getElementById('loginUsername').value;
-        const password = document.getElementById('loginPassword').value;
+        const username = document.getElementById('loginUsername') ? document.getElementById('loginUsername').value : '';
+        const password = document.getElementById('loginPassword') ? document.getElementById('loginPassword').value : '';
 
         google.script.run
             .withSuccessHandler(onLoginSuccess)
@@ -1856,7 +1848,7 @@
 
     function onLoginSuccess(result) {
         hideLoading();
-        if (result.success) {
+        if (result && result.success) {
             currentUser = result; 
             localStorage.setItem('absensiAppSession', JSON.stringify(result));
             document.getElementById('loginPage').classList.add('hidden');
@@ -1864,7 +1856,7 @@
             initDashboard();
         } else {
             const errorDiv = document.getElementById('loginError');
-            document.getElementById('errorText').textContent = result.message;
+            document.getElementById('errorText').textContent = (result && result.message) ? result.message : 'Login gagal.';
             errorDiv.classList.remove('hidden');
             setTimeout(() => errorDiv.classList.add('hidden'), 6000);
         }
@@ -1872,7 +1864,9 @@
 
     function onLoginFailure(error) {
         hideLoading();
-        alert('Gagal terhubung: ' + (error ? error.message : 'Error tidak diketahui'));
+        const errorDiv = document.getElementById('loginError');
+        document.getElementById('errorText').textContent = 'Gagal terhubung: ' + (error ? error.message : 'Error tidak diketahui');
+        errorDiv.classList.remove('hidden');
     }
 
     function logout() {
@@ -1881,9 +1875,8 @@
         currentUser = null;
         document.getElementById('dashboardContainer').classList.add('hidden');
         document.getElementById('loginPage').classList.remove('hidden');
-        document.getElementById('username').value = '';
-        document.getElementById('password').value = '';
-        document.getElementById('nisn').value = '';
+        if (document.getElementById('loginUsername')) document.getElementById('loginUsername').value = '';
+        if (document.getElementById('loginPassword')) document.getElementById('loginPassword').value = '';
         document.getElementById('sidebar').classList.add('-translate-x-full');
     }
 
