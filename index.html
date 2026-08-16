@@ -266,7 +266,10 @@
                       </div>
                       <div class="flex items-center gap-3">
                            <button onclick="showImportExcelModal('siswa')" class="flex items-center space-x-2 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-2 rounded-xl shadow-sm transition transform active:scale-95">
-                                <i class="fas fa-file-excel text-emerald-600"></i> <span>Import Excel / CSV</span>
+                                <i class="fas fa-file-excel text-emerald-600"></i> <span>Import Excel</span>
+                           </button>
+                           <button onclick="pushAllDataToMySQL()" class="flex items-center space-x-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3.5 py-2 rounded-xl shadow-sm transition transform active:scale-95" title="Kirim seluruh data lokal Siswa, Guru, dan Tendik ke Database MySQL">
+                                <i class="fas fa-database text-emerald-600"></i> <span>Push ke MySQL</span>
                            </button>
                            <span class="text-xs font-bold bg-white text-gray-600 px-3 py-2 rounded-xl border border-gray-200 shadow-sm">
                                <i class="far fa-clock mr-2 text-indigo-500"></i> <span id="adminDateDisplay">...</span>
@@ -1440,6 +1443,7 @@
       },
 
       addSiswa: async (token, siswaData) => {
+        const phpRes = await callPhpApi('addSiswa', token, siswaData);
         const list = JSON.parse(localStorage.getItem(DB_KEYS.SISWA) || '[]');
         const cleanNisn = String(siswaData.nisn).replace(/^'/, '');
         if (list.some(x => String(x.nisn) === cleanNisn)) {
@@ -1449,10 +1453,12 @@
         siswaData.noHp = String(siswaData.noHp).replace(/^'/, '');
         list.push(siswaData);
         localStorage.setItem(DB_KEYS.SISWA, JSON.stringify(list));
+        if (phpRes && phpRes.success) return phpRes;
         return { success: true, message: 'Siswa berhasil ditambahkan' };
       },
 
       updateSiswa: async (token, oldNisn, siswaData) => {
+        const phpRes = await callPhpApi('updateSiswa', token, oldNisn, siswaData);
         let list = JSON.parse(localStorage.getItem(DB_KEYS.SISWA) || '[]');
         const cleanOld = String(oldNisn).replace(/^'/, '');
         const idx = list.findIndex(x => String(x.nisn) === cleanOld);
@@ -1461,16 +1467,19 @@
           siswaData.noHp = String(siswaData.noHp).replace(/^'/, '');
           list[idx] = siswaData;
           localStorage.setItem(DB_KEYS.SISWA, JSON.stringify(list));
+          if (phpRes && phpRes.success) return phpRes;
           return { success: true, message: 'Data siswa berhasil diperbarui' };
         }
         return { success: false, message: 'Siswa tidak ditemukan' };
       },
 
       deleteSiswa: async (token, nisn) => {
+        const phpRes = await callPhpApi('deleteSiswa', token, nisn);
         let list = JSON.parse(localStorage.getItem(DB_KEYS.SISWA) || '[]');
         const clean = String(nisn).replace(/^'/, '');
         list = list.filter(x => String(x.nisn) !== clean);
         localStorage.setItem(DB_KEYS.SISWA, JSON.stringify(list));
+        if (phpRes && phpRes.success) return phpRes;
         return { success: true, message: 'Siswa berhasil dihapus' };
       },
 
@@ -1482,6 +1491,7 @@
       },
 
       addGuru: async (token, username, password, nip, nama, jabatan, noHp) => {
+        const phpRes = await callPhpApi('addGuru', token, username, password, nip, nama, jabatan, noHp);
         const list = JSON.parse(localStorage.getItem(DB_KEYS.GURU) || '[]');
         const cleanU = String(username).replace(/^'/, '');
         const cleanP = String(password).replace(/^'/, '');
@@ -1498,10 +1508,12 @@
           noHp: String(noHp || '-').replace(/^'/, '')
         });
         localStorage.setItem(DB_KEYS.GURU, JSON.stringify(list));
+        if (phpRes && phpRes.success) return phpRes;
         return { success: true, message: 'Guru berhasil ditambahkan' };
       },
 
       updateGuru: async (token, oldUsername, username, password, nip, nama, jabatan, noHp) => {
+        const phpRes = await callPhpApi('updateGuru', token, oldUsername, username, password, nip, nama, jabatan, noHp);
         let list = JSON.parse(localStorage.getItem(DB_KEYS.GURU) || '[]');
         const cleanOld = String(oldUsername).replace(/^'/, '');
         const idx = list.findIndex(x => x.username.toLowerCase() === cleanOld.toLowerCase());
@@ -1516,16 +1528,19 @@
             noHp: String(noHp || '-').replace(/^'/, '')
           };
           localStorage.setItem(DB_KEYS.GURU, JSON.stringify(list));
+          if (phpRes && phpRes.success) return phpRes;
           return { success: true, message: 'Data Guru berhasil diperbarui' };
         }
         return { success: false, message: 'Guru tidak ditemukan' };
       },
 
       deleteGuru: async (token, username) => {
+        const phpRes = await callPhpApi('deleteGuru', token, username);
         let list = JSON.parse(localStorage.getItem(DB_KEYS.GURU) || '[]');
         const cleanOld = String(username).replace(/^'/, '');
         list = list.filter(x => x.username.toLowerCase() !== cleanOld.toLowerCase());
         localStorage.setItem(DB_KEYS.GURU, JSON.stringify(list));
+        if (phpRes && phpRes.success) return phpRes;
         return { success: true, message: 'Guru berhasil dihapus' };
       },
 
@@ -1556,6 +1571,7 @@
       },
 
       addTendik: async (token, username, password, nip, nama, jabatan, noHp) => {
+        const phpRes = await callPhpApi('addTendik', token, username, password, nip, nama, jabatan, noHp);
         const list = JSON.parse(localStorage.getItem(DB_KEYS.TENDIK) || '[]');
         const cleanU = String(username).replace(/^'/, '');
         if (list.some(x => x.username.toLowerCase() === cleanU.toLowerCase())) {
@@ -1571,10 +1587,12 @@
           noHp: String(noHp || '-').replace(/^'/, '')
         });
         localStorage.setItem(DB_KEYS.TENDIK, JSON.stringify(list));
+        if (phpRes && phpRes.success) return phpRes;
         return { success: true, message: 'Data Tendik berhasil ditambahkan' };
       },
 
       updateTendik: async (token, oldUsername, username, password, nip, nama, jabatan, noHp) => {
+        const phpRes = await callPhpApi('updateTendik', token, oldUsername, username, password, nip, nama, jabatan, noHp);
         let list = JSON.parse(localStorage.getItem(DB_KEYS.TENDIK) || '[]');
         const cleanOld = String(oldUsername).replace(/^'/, '');
         const idx = list.findIndex(x => x.username.toLowerCase() === cleanOld.toLowerCase());
@@ -1589,17 +1607,20 @@
             noHp: String(noHp || '-').replace(/^'/, '')
           };
           localStorage.setItem(DB_KEYS.TENDIK, JSON.stringify(list));
+          if (phpRes && phpRes.success) return phpRes;
           return { success: true, message: 'Data Tendik berhasil diperbarui' };
         }
         return { success: false, message: 'Tendik tidak ditemukan' };
       },
 
       deleteTendik: async (token, username) => {
+        const phpRes = await callPhpApi('deleteTendik', token, username);
         let list = JSON.parse(localStorage.getItem(DB_KEYS.TENDIK) || '[]');
         const cleanOld = String(username).replace(/^'/, '');
         list = list.filter(x => x.username.toLowerCase() !== cleanOld.toLowerCase());
         localStorage.setItem(DB_KEYS.TENDIK, JSON.stringify(list));
-        return { success: true, message: 'Tendik berhasil dihapus' };
+        if (phpRes && phpRes.success) return phpRes;
+        return { success: true, message: 'Data Tendik berhasil dihapus' };
       },
 
       getAppConfig: async () => {
@@ -1978,6 +1999,7 @@
       },
 
       importSiswaBulk: async (token, rows) => {
+        const phpRes = await callPhpApi('importSiswaBulk', rows);
         const list = JSON.parse(localStorage.getItem(DB_KEYS.SISWA) || '[]');
         let added = 0;
         rows.forEach(row => {
@@ -1999,10 +2021,12 @@
           }
         });
         localStorage.setItem(DB_KEYS.SISWA, JSON.stringify(list));
+        if (phpRes && phpRes.success) return phpRes;
         return { success: true, message: `${added} siswa berhasil diimpor`, added: added };
       },
 
       importGuruBulk: async (token, rows) => {
+        const phpRes = await callPhpApi('importGuruBulk', rows);
         const list = JSON.parse(localStorage.getItem(DB_KEYS.GURU) || '[]');
         let added = 0;
         rows.forEach(row => {
@@ -2022,10 +2046,12 @@
           }
         });
         localStorage.setItem(DB_KEYS.GURU, JSON.stringify(list));
+        if (phpRes && phpRes.success) return phpRes;
         return { success: true, message: `${added} guru berhasil diimpor`, added: added };
       },
 
       importTendikBulk: async (token, rows) => {
+        const phpRes = await callPhpApi('importTendikBulk', rows);
         const list = JSON.parse(localStorage.getItem(DB_KEYS.TENDIK) || '[]');
         let added = 0;
         rows.forEach(row => {
@@ -2044,6 +2070,7 @@
           }
         });
         localStorage.setItem(DB_KEYS.TENDIK, JSON.stringify(list));
+        if (phpRes && phpRes.success) return phpRes;
         return { success: true, message: `${added} tendik berhasil diimpor`, added: added };
       }
     };
@@ -4068,6 +4095,72 @@
         closeImportExcelModal();
         Swal.fire('Error Import', err.message, 'error');
       }
+    }
+
+    async function pushAllDataToMySQL() {
+        const siswaList = JSON.parse(localStorage.getItem(DB_KEYS.SISWA) || '[]');
+        const guruList = JSON.parse(localStorage.getItem(DB_KEYS.GURU) || '[]');
+        const tendikList = JSON.parse(localStorage.getItem(DB_KEYS.TENDIK) || '[]');
+
+        const totalItems = siswaList.length + guruList.length + tendikList.length;
+        if (totalItems === 0) {
+            Swal.fire('Data Kosong', 'Tidak ada data lokal yang dapat dikirim ke MySQL.', 'info');
+            return;
+        }
+
+        const confirm = await Swal.fire({
+            title: 'Push Semua Data ke MySQL?',
+            html: `Akan mengirim seluruh data lokal:<br>
+                   • <b>${siswaList.length}</b> Data Siswa<br>
+                   • <b>${guruList.length}</b> Data Guru<br>
+                   • <b>${tendikList.length}</b> Data Tendik<br>
+                   ke database MySQL cPanel (api.php).`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#059669',
+            cancelButtonColor: '#6B7280',
+            confirmButtonText: '<i class="fas fa-upload mr-1"></i> Mulai Push ke MySQL',
+            cancelButtonText: 'Batal'
+        });
+
+        if (!confirm.isConfirmed) return;
+
+        showLoading();
+
+        try {
+            let resSiswa = { success: true, added: 0 };
+            let resGuru = { success: true, added: 0 };
+            let resTendik = { success: true, added: 0 };
+
+            if (siswaList.length > 0) {
+                resSiswa = await callPhpApi('importSiswaBulk', siswaList);
+            }
+            if (guruList.length > 0) {
+                resGuru = await callPhpApi('importGuruBulk', guruList);
+            }
+            if (tendikList.length > 0) {
+                resTendik = await callPhpApi('importTendikBulk', tendikList);
+            }
+
+            hideLoading();
+
+            if ((resSiswa && resSiswa.success) || (resGuru && resGuru.success) || (resTendik && resTendik.success)) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Push Data Berhasil!',
+                    html: `Data telah tersimpan di MySQL:<br>
+                           • Siswa: <b>${resSiswa?.added ?? siswaList.length}</b> berhasil<br>
+                           • Guru: <b>${resGuru?.added ?? guruList.length}</b> berhasil<br>
+                           • Tendik: <b>${resTendik?.added ?? tendikList.length}</b> berhasil`,
+                    confirmButtonColor: '#059669'
+                });
+            } else {
+                Swal.fire('Gagal Menghubungi Server MySQL', 'Pastikan koneksi hosting/cPanel api.php aktif dan konfigurasi DB di api.php sudah sesuai.', 'warning');
+            }
+        } catch (err) {
+            hideLoading();
+            Swal.fire('Error Push MySQL', err.message, 'error');
+        }
     }
 
     function showAddSiswaModal() { showModal(createSiswaModal()); }

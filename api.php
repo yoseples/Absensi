@@ -402,7 +402,7 @@ try {
             break;
 
         case 'importSiswaBulk':
-            $dataArray = $args[0] ?? [];
+            $dataArray = is_array($args[0] ?? null) ? $args[0] : (is_array($args[1] ?? null) ? $args[1] : []);
             $added = 0;
             $skipped = 0;
 
@@ -433,7 +433,7 @@ try {
             break;
 
         case 'importGuruBulk':
-            $dataArray = $args[0] ?? [];
+            $dataArray = is_array($args[0] ?? null) ? $args[0] : (is_array($args[1] ?? null) ? $args[1] : []);
             $added = 0;
             $skipped = 0;
 
@@ -466,7 +466,7 @@ try {
             break;
 
         case 'importTendikBulk':
-            $dataArray = $args[0] ?? [];
+            $dataArray = is_array($args[0] ?? null) ? $args[0] : (is_array($args[1] ?? null) ? $args[1] : []);
             $added = 0;
             $skipped = 0;
 
