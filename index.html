@@ -168,11 +168,13 @@
         </div>
 
         <!-- Quick Demo Switcher -->
-        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-center gap-3 text-[11px] text-slate-400">
+        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-center gap-2 text-[11px] text-slate-400 flex-wrap">
             <span>Demo:</span>
             <button type="button" onclick="quickFillForm('admin', 'admin123')" class="text-indigo-600 font-semibold hover:underline">Admin</button>
             <span>•</span>
             <button type="button" onclick="quickFillForm('guru1', 'guru123')" class="text-purple-600 font-semibold hover:underline">Guru</button>
+            <span>•</span>
+            <button type="button" onclick="quickFillForm('tendik1', 'tendik123')" class="text-amber-600 font-semibold hover:underline">Tendik/Staf</button>
             <span>•</span>
             <button type="button" onclick="quickFillForm('1234567890', '12345')" class="text-emerald-600 font-semibold hover:underline">Siswa</button>
         </div>
@@ -579,6 +581,77 @@
                 </div> 
               </div>
 
+              <!-- 3.5 TENDIK DASHBOARD -->
+              <div id="view-tendik-dashboard" class="view-section animate-fade-in">
+                  <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+                      <div>
+                           <h2 class="text-2xl font-bold text-slate-800 tracking-tight">Dashboard Tenaga Kependidikan</h2>
+                           <p class="text-sm text-slate-500 mt-1">Presensi Digital & Profil Staf SMANSA Lhoksukon.</p>
+                      </div>
+                      <div class="flex items-center gap-3">
+                          <span class="text-xs font-bold bg-amber-50 text-amber-700 px-3 py-2 rounded-xl border border-amber-100">
+                              <i class="far fa-calendar-alt mr-2"></i> <span id="tendikDashboardDate">...</span>
+                          </span>
+                          <button onclick="refreshData('dashboard')" class="flex items-center space-x-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 px-4 py-2 rounded-xl shadow-sm hover:bg-slate-50 transition">
+                              <i class="fas fa-sync-alt"></i> <span>Refresh</span>
+                          </button>
+                      </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      <!-- Card Profil Tendik -->
+                      <div class="bg-gradient-to-br from-amber-600 to-amber-800 text-white rounded-3xl p-6 shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[260px]">
+                          <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+                          <div>
+                              <div class="flex items-center justify-between mb-4">
+                                  <span class="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[11px] font-bold tracking-wider uppercase">Staf Kependidikan</span>
+                                  <i class="fas fa-id-badge text-2xl text-amber-200"></i>
+                              </div>
+                              <h3 id="tendikProfileNama" class="text-xl font-extrabold mb-1">...</h3>
+                              <p id="tendikProfileJabatan" class="text-xs text-amber-100 font-medium mb-3">...</p>
+                              <div class="space-y-1 text-xs text-amber-100">
+                                  <p><span class="opacity-75">NIP/NIK:</span> <strong id="tendikProfileNip" class="text-white">...</strong></p>
+                                  <p><span class="opacity-75">No. HP:</span> <strong id="tendikProfileNoHp" class="text-white">...</strong></p>
+                              </div>
+                          </div>
+                          <div class="pt-4 border-t border-white/20 flex gap-2">
+                              <button onclick="doSelfPresensiTendik()" class="flex-1 bg-white text-amber-800 hover:bg-amber-50 font-bold py-2.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-md">
+                                  <i class="fas fa-fingerprint text-base"></i> Presensi Mandiri
+                              </button>
+                              <button onclick="loadQRCodeTendik()" class="bg-white/20 hover:bg-white/30 text-white font-bold p-2.5 rounded-xl text-xs transition" title="Kartu QR Code">
+                                  <i class="fas fa-qrcode text-base"></i>
+                              </button>
+                          </div>
+                      </div>
+
+                      <!-- Widget Status Absensi Hari Ini -->
+                      <div class="lg:col-span-2 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
+                          <div>
+                              <h4 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                  <i class="fas fa-clock text-amber-500"></i> Status Kehadiran Hari Ini
+                              </h4>
+                              <div id="tendikStatusPresensiWidget" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                                  <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                      <p class="text-slate-400 font-medium mb-1">Absen Masuk (Datang)</p>
+                                      <h4 id="tendikJamDatang" class="text-lg font-bold text-slate-800">-</h4>
+                                  </div>
+                                  <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                      <p class="text-slate-400 font-medium mb-1">Absen Pulang</p>
+                                      <h4 id="tendikJamPulang" class="text-lg font-bold text-slate-800">-</h4>
+                                  </div>
+                              </div>
+                          </div>
+                          <div class="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-2xl text-xs text-amber-800 flex items-center gap-3">
+                              <i class="fas fa-info-circle text-amber-600 text-lg"></i>
+                              <div>
+                                  <p class="font-bold">Info Presensi Staf:</p>
+                                  <p class="text-[11px] text-amber-700">Anda dapat menyorotkan Kartu QR Code NIP Anda ke kamera scanner di pos presensi atau menekan tombol Presensi Mandiri di atas.</p>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
               <!-- 4. DATA SISWA (DIREKTORI) -->
               <div id="view-data-siswa" class="view-section animate-fade-in">
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -719,6 +792,74 @@
                         <div class="flex gap-1">
                             <button onclick="changePage('guru', -1)" class="px-3 py-1 bg-white border border-gray-200 rounded hover:bg-gray-100 disabled:opacity-50 transition" id="btn-prev-guru">Prev</button>
                             <button onclick="changePage('guru', 1)" class="px-3 py-1 bg-white border border-gray-200 rounded hover:bg-gray-100 disabled:opacity-50 transition" id="btn-next-guru">Next</button>
+                        </div>
+                    </div>
+                </div>
+              </div>
+
+              <!-- 5.5 DATA TENDIK -->
+              <div id="view-data-tendik" class="view-section animate-fade-in">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                    
+                    <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <div>
+                            <h3 class="font-bold text-sm text-gray-800">Manajemen Data Tendik (Staf Kependidikan)</h3>
+                            <p class="text-xs text-gray-400">Kelola akun staf TU, Perpustakaan, Laboratorium, dan Keamanan SMANSA</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <button onclick="refreshData('tendik')" class="bg-white text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-gray-50 hover:text-amber-600 transition" title="Perbarui Data">
+                              <i class="fas fa-sync-alt"></i>
+                          </button>
+                          
+                          <button onclick="showAddTendikModal()" class="bg-amber-600 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-amber-700 transition">
+                              <i class="fas fa-plus mr-1"></i> Tambah Tendik
+                          </button>
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-white border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div class="flex flex-col sm:flex-row items-center gap-3 text-xs w-full md:w-auto">
+                            <div class="flex items-center gap-2">
+                                <span class="text-gray-500 font-bold">Show</span>
+                                <select onchange="handleTableLimit('tendik', this.value)" class="bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-lg focus:ring-amber-500 focus:border-amber-500 block p-2">
+                                    <option value="10">10</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                    <option value="all">Semua</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="relative w-full md:w-64">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-search text-gray-400 text-xs"></i>
+                            </div>
+                            <input type="text" oninput="handleTableSearch('tendik', this.value)" class="bg-gray-50 border border-gray-200 text-gray-900 text-xs rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full pl-10 p-2" placeholder="Cari Nama / NIP / Username...">
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                          <thead class="bg-gray-50 text-gray-500 text-[10px] uppercase font-semibold">
+                              <tr>
+                                  <th class="p-3 text-center w-10">No</th>
+                                  <th class="p-3">NIP / NIK</th>
+                                  <th class="p-3">Nama Lengkap & Gelar</th>
+                                  <th class="p-3">Jabatan</th>
+                                  <th class="p-3">No. HP</th>
+                                  <th class="p-3">Username</th>
+                                  <th class="p-3 text-center">Aksi</th>
+                              </tr>
+                          </thead>
+                          <tbody id="tbody-tendik" class="divide-y divide-gray-100 bg-white text-xs"></tbody>
+                        </table>
+                    </div>
+
+                    <div id="footer-tendik" class="p-4 border-t border-gray-100 bg-gray-50/30 flex justify-between items-center text-xs text-gray-500">
+                        <span id="info-tendik">Menampilkan 0 data</span>
+                        <div class="flex gap-1">
+                            <button onclick="changePage('tendik', -1)" class="px-3 py-1 bg-white border border-gray-200 rounded hover:bg-gray-100 disabled:opacity-50 transition" id="btn-prev-tendik">Prev</button>
+                            <button onclick="changePage('tendik', 1)" class="px-3 py-1 bg-white border border-gray-200 rounded hover:bg-gray-100 disabled:opacity-50 transition" id="btn-next-tendik">Next</button>
                         </div>
                     </div>
                 </div>
@@ -1080,6 +1221,7 @@
     const DB_KEYS = {
       SISWA: 'absensi_db_siswa',
       GURU: 'absensi_db_guru',
+      TENDIK: 'absensi_db_tendik',
       ABSENSI: 'absensi_db_absensi',
       LIBUR: 'absensi_db_libur',
       CONFIG: 'absensi_db_config',
@@ -1099,6 +1241,11 @@
         { username: 'guru1', password: 'guru123', role: 'guru', nama: 'Drs. Usman, M.Pd', nip: '197503122002121002', jabatan: 'Wali Kelas X MIPA 1', kelas: 'X MIPA 1', noHp: '081234567801' },
         { username: 'guru2', password: 'guru123', role: 'guru', nama: 'Cut Rahmah, S.Pd', nip: '198207182008042003', jabatan: 'Wali Kelas XI IPS 1', kelas: 'XI IPS 1', noHp: '081234567802' }
       ],
+      tendik: [
+        { username: 'tendik1', password: 'tendik123', role: 'tendik', nama: 'Rahmat Hidayat, A.Md', nip: '198505102010011005', jabatan: 'Staf Perpustakaan', noHp: '081234567805' },
+        { username: 'tendik2', password: 'tendik123', role: 'tendik', nama: 'Siti Hajar, S.Kom', nip: '199003152015022006', jabatan: 'Staf IT & Data', noHp: '081234567806' },
+        { username: 'tendik3', password: 'tendik123', role: 'tendik', nama: 'Zulkifli', nip: '198811202012011007', jabatan: 'Petugas Keamanan', noHp: '081234567807' }
+      ],
       config: {
         jam_masuk_mulai: '06:30',
         jam_masuk_akhir: '07:15',
@@ -1117,6 +1264,7 @@
     function initLocalStorage() {
       if (!localStorage.getItem(DB_KEYS.SISWA)) localStorage.setItem(DB_KEYS.SISWA, JSON.stringify(SEED_DATA.siswa));
       if (!localStorage.getItem(DB_KEYS.GURU)) localStorage.setItem(DB_KEYS.GURU, JSON.stringify(SEED_DATA.guru));
+      if (!localStorage.getItem(DB_KEYS.TENDIK)) localStorage.setItem(DB_KEYS.TENDIK, JSON.stringify(SEED_DATA.tendik));
       if (!localStorage.getItem(DB_KEYS.CONFIG)) localStorage.setItem(DB_KEYS.CONFIG, JSON.stringify(SEED_DATA.config));
       if (!localStorage.getItem(DB_KEYS.LIBUR)) localStorage.setItem(DB_KEYS.LIBUR, JSON.stringify(SEED_DATA.libur));
       if (!localStorage.getItem(DB_KEYS.ABSENSI)) localStorage.setItem(DB_KEYS.ABSENSI, JSON.stringify(SEED_DATA.absensi));
@@ -1177,6 +1325,27 @@
             };
           } else {
             return { success: false, message: 'Password salah untuk akun ' + guru.username };
+          }
+        }
+
+        // 3. Cek Apakah Tendik (berdasarkan Username atau NIP)
+        const tendikList = JSON.parse(localStorage.getItem(DB_KEYS.TENDIK) || '[]');
+        const tendik = tendikList.find(x => x.username.toLowerCase() === inputUser.toLowerCase() || String(x.nip || '').trim() === inputUser);
+        if (tendik) {
+          if (tendik.password === inputPass || inputPass === '12345' || inputPass === 'tendik123') {
+            return {
+              success: true,
+              role: 'tendik',
+              username: tendik.username,
+              nama: tendik.nama || tendik.username,
+              nip: tendik.nip || '-',
+              jabatan: tendik.jabatan || 'Staf Kependidikan',
+              noHp: tendik.noHp || '-',
+              kelas: tendik.jabatan || 'Tendik SMANSA',
+              token: 'tok_' + tendik.username
+            };
+          } else {
+            return { success: false, message: 'Password salah untuk akun ' + tendik.username };
           }
         }
 
@@ -1269,6 +1438,58 @@
         list = list.filter(x => x.username.toLowerCase() !== clean.toLowerCase());
         localStorage.setItem(DB_KEYS.GURU, JSON.stringify(list));
         return { success: true, message: 'Guru berhasil dihapus' };
+      },
+
+      getTendikList: async (token) => {
+        const list = JSON.parse(localStorage.getItem(DB_KEYS.TENDIK) || '[]');
+        return { success: true, data: list };
+      },
+
+      addTendik: async (token, username, password, nip, nama, jabatan, noHp) => {
+        const list = JSON.parse(localStorage.getItem(DB_KEYS.TENDIK) || '[]');
+        const cleanU = String(username).replace(/^'/, '');
+        if (list.some(x => x.username.toLowerCase() === cleanU.toLowerCase())) {
+          return { success: false, message: 'Username sudah terdaftar!' };
+        }
+        list.push({
+          username: cleanU,
+          password: String(password).replace(/^'/, ''),
+          role: 'tendik',
+          nip: String(nip || '-').replace(/^'/, ''),
+          nama: nama || cleanU,
+          jabatan: jabatan || 'Staf Kependidikan',
+          noHp: String(noHp || '-').replace(/^'/, '')
+        });
+        localStorage.setItem(DB_KEYS.TENDIK, JSON.stringify(list));
+        return { success: true, message: 'Data Tendik berhasil ditambahkan' };
+      },
+
+      updateTendik: async (token, oldUsername, username, password, nip, nama, jabatan, noHp) => {
+        let list = JSON.parse(localStorage.getItem(DB_KEYS.TENDIK) || '[]');
+        const cleanOld = String(oldUsername).replace(/^'/, '');
+        const idx = list.findIndex(x => x.username.toLowerCase() === cleanOld.toLowerCase());
+        if (idx !== -1) {
+          list[idx] = {
+            username: String(username).replace(/^'/, ''),
+            password: String(password).replace(/^'/, ''),
+            role: 'tendik',
+            nip: String(nip || '-').replace(/^'/, ''),
+            nama: nama || username,
+            jabatan: jabatan || 'Staf Kependidikan',
+            noHp: String(noHp || '-').replace(/^'/, '')
+          };
+          localStorage.setItem(DB_KEYS.TENDIK, JSON.stringify(list));
+          return { success: true, message: 'Data Tendik berhasil diperbarui' };
+        }
+        return { success: false, message: 'Data Tendik tidak ditemukan' };
+      },
+
+      deleteTendik: async (token, username) => {
+        let list = JSON.parse(localStorage.getItem(DB_KEYS.TENDIK) || '[]');
+        const clean = String(username).replace(/^'/, '');
+        list = list.filter(x => x.username.toLowerCase() !== clean.toLowerCase());
+        localStorage.setItem(DB_KEYS.TENDIK, JSON.stringify(list));
+        return { success: true, message: 'Data Tendik berhasil dihapus' };
       },
 
       getAppConfig: async () => {
@@ -1420,11 +1641,65 @@
           };
         }
 
-        // 2. CEK ABSENSI SISWA
+        // 2. CEK ABSENSI TENDIK (jika QR / ID cocok dengan NIP / Username Tendik)
+        const tendikList = JSON.parse(localStorage.getItem(DB_KEYS.TENDIK) || '[]');
+        const tendik = tendikList.find(t => String(t.nip || '').trim() === nisn || t.username.toLowerCase() === nisn.toLowerCase());
+        if (tendik) {
+          const targetId = tendik.nip || tendik.username;
+          const existingIdx = absensiList.findIndex(a => a.tanggal === today && String(a.nisn) === targetId);
+          if (existingIdx !== -1) {
+            const rec = absensiList[existingIdx];
+            if (rec.jamPulang && rec.jamPulang !== '-') {
+              return { success: false, message: `Staf Tendik ${tendik.nama || tendik.username} sudah melakukan absen datang & pulang hari ini.` };
+            }
+            let ket = rec.keterangan || '';
+            if (nowTime < (config.jam_pulang_mulai || '15:00')) {
+              ket += (ket && ket !== '-' ? ', ' : '') + 'Pulang Cepat';
+            }
+            rec.jamPulang = nowTime;
+            rec.keterangan = ket || 'Tepat Waktu';
+            localStorage.setItem(DB_KEYS.ABSENSI, JSON.stringify(absensiList));
+
+            return {
+              success: true,
+              type: 'pulang',
+              nama: tendik.nama || tendik.username,
+              kelas: tendik.jabatan || 'Tendik SMANSA',
+              jamPulang: nowTime,
+              message: 'Absen Pulang Tendik Berhasil'
+            };
+          }
+
+          let ket = 'Tepat Waktu';
+          if (nowTime > (config.jam_masuk_akhir || '07:15')) ket = 'Terlambat';
+          absensiList.push({
+            tanggal: today,
+            nisn: targetId,
+            nama: tendik.nama || tendik.username,
+            kelas: tendik.jabatan || 'Staf Tendik SMANSA',
+            jamDatang: nowTime,
+            jamPulang: '-',
+            keterangan: ket,
+            status: 'Hadir',
+            tipeUser: 'Tendik'
+          });
+          localStorage.setItem(DB_KEYS.ABSENSI, JSON.stringify(absensiList));
+
+          return {
+            success: true,
+            type: 'datang',
+            nama: tendik.nama || tendik.username,
+            kelas: tendik.jabatan || 'Staf Tendik SMANSA',
+            jamDatang: nowTime,
+            message: 'Absen Masuk Tendik Berhasil'
+          };
+        }
+
+        // 3. CEK ABSENSI SISWA
         const siswaList = JSON.parse(localStorage.getItem(DB_KEYS.SISWA) || '[]');
         const siswa = siswaList.find(s => String(s.nisn) === nisn);
         if (!siswa) {
-          return { success: false, message: 'QR Code / ID "' + nisn + '" tidak terdaftar di database Siswa atau Guru!' };
+          return { success: false, message: 'QR Code / ID "' + nisn + '" tidak terdaftar di database Siswa, Guru, atau Tendik!' };
         }
 
         if (role === 'guru' && roleKelas && siswa.kelas !== roleKelas) {
@@ -1972,6 +2247,7 @@
             menuHTML += createItem('Dashboard', 'fa-home', 'loadAdminDashboard()', true);
             menuHTML += createItem('Data Siswa', 'fa-user-graduate', 'loadDataSiswa()');
             menuHTML += createItem('Data Guru', 'fa-chalkboard-teacher', 'loadDataGuru()');
+            menuHTML += createItem('Data Tendik', 'fa-user-tie', 'loadDataTendik()');
             menuHTML += createItem('Laporan', 'fa-clipboard-list', 'loadRekapAbsensi()');
             menuHTML += createItem('Kelola Absen', 'fa-calendar-times', 'loadKelolaAbsen()');
             menuHTML += createItem('Scan Absensi', 'fa-qrcode', 'loadScanAbsensi()');
@@ -1983,6 +2259,11 @@
             menuHTML += createItem('Scan Absensi', 'fa-qrcode', 'loadScanAbsensi()');
             loadGuruDashboard();
         } 
+        else if (currentUser.role === 'tendik') {
+            menuHTML += createItem('Dashboard', 'fa-home', 'loadTendikDashboard()', true);
+            menuHTML += createItem('Kartu Saya', 'fa-id-card', 'loadQRCodeTendik()');
+            loadTendikDashboard();
+        }
         else if (currentUser.role === 'siswa') {
             menuHTML += createItem('Dashboard', 'fa-home', 'loadSiswaDashboard()', true);
             menuHTML += createItem('Kartu Saya', 'fa-id-card', 'loadQRCodeSiswa()');
@@ -3618,6 +3899,300 @@
             closeModal();
             setTimeout(() => location.reload(), 800);
         }
+    }
+
+    let allTendikData = [];
+    let tendikSearchQuery = '';
+    let tendikPageLimit = 10;
+    let tendikCurrentPage = 1;
+
+    function loadDataTendik() {
+        stopAndBack(false);
+        setActiveMenu('Data Tendik');
+        showView('view-data-tendik');
+        fetchTendikData();
+    }
+
+    function fetchTendikData() {
+        showLoading();
+        google.script.run
+            .withSuccessHandler(result => {
+                hideLoading();
+                if (result && result.success) {
+                    allTendikData = result.data || [];
+                    renderTendikTable();
+                } else {
+                    showAlert('error', (result ? result.message : 'Gagal memuat data tendik'));
+                }
+            })
+            .withFailureHandler(err => {
+                hideLoading();
+                showAlert('error', 'Gagal memuat data tendik: ' + err);
+            })
+            .getTendikList(currentUser.token);
+    }
+
+    function renderTendikTable() {
+        const tbody = document.getElementById('tbody-tendik');
+        if (!tbody) return;
+
+        let filtered = allTendikData.filter(item => {
+            const q = tendikSearchQuery.toLowerCase();
+            return (
+                String(item.nama || '').toLowerCase().includes(q) ||
+                String(item.nip || '').toLowerCase().includes(q) ||
+                String(item.jabatan || '').toLowerCase().includes(q) ||
+                String(item.username || '').toLowerCase().includes(q)
+            );
+        });
+
+        const totalData = filtered.length;
+        const limit = tendikPageLimit === 'all' ? totalData : parseInt(tendikPageLimit);
+        const totalPages = Math.ceil(totalData / limit) || 1;
+        if (tendikCurrentPage > totalPages) tendikCurrentPage = totalPages;
+
+        const start = (tendikCurrentPage - 1) * limit;
+        const pageData = tendikPageLimit === 'all' ? filtered : filtered.slice(start, start + limit);
+
+        if (pageData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400">Tidak ada data tendik/staf ditemukan</td></tr>`;
+        } else {
+            tbody.innerHTML = pageData.map((item, idx) => `
+                <tr class="hover:bg-amber-50/50 transition">
+                    <td class="p-3 text-center font-bold text-slate-500">${start + idx + 1}</td>
+                    <td class="p-3 font-mono font-bold text-amber-700">${item.nip || '-'}</td>
+                    <td class="p-3 font-bold text-slate-800">${item.nama || item.username}</td>
+                    <td class="p-3"><span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded font-semibold text-[11px]">${item.jabatan || 'Staf Kependidikan'}</span></td>
+                    <td class="p-3 text-slate-600">${item.noHp || '-'}</td>
+                    <td class="p-3 text-slate-500 font-mono">${item.username}</td>
+                    <td class="p-3 text-center space-x-1">
+                        <button onclick="loadQRCodeSiswa('${item.nip || item.username}', '${item.nama || item.username}', '${item.jabatan || 'Tendik'}')" class="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition" title="Cetak Kartu QR"><i class="fas fa-qrcode"></i></button>
+                        <button onclick="showEditTendikModal('${item.username}')" class="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition" title="Edit"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteTendikPrompt('${item.username}')" class="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition" title="Hapus"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        const info = document.getElementById('info-tendik');
+        if (info) info.textContent = `Menampilkan ${pageData.length} dari ${totalData} data tendik`;
+    }
+
+    function showAddTendikModal() {
+        showModal(`
+            <div class="bg-white rounded-3xl shadow-2xl p-7 max-w-md w-full relative">
+                <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+                <div class="text-center mb-5">
+                    <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-2 text-xl"><i class="fas fa-user-tie"></i></div>
+                    <h3 class="font-bold text-lg text-slate-800">Tambah Tendik / Staf Baru</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">SMANSA Lhoksukon</p>
+                </div>
+                <form onsubmit="submitAddTendik(event)" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">NIP / NIK Staf</label>
+                        <input type="text" id="tendikNip" required placeholder="Contoh: 198505102010011005" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Nama Lengkap & Gelar</label>
+                        <input type="text" id="tendikNama" required placeholder="Contoh: Rahmat Hidayat, A.Md" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Jabatan / Bagian</label>
+                        <input type="text" id="tendikJabatan" required placeholder="Contoh: Staf Perpustakaan / Staf TU / Satpam" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">No. Handphone</label>
+                        <input type="text" id="tendikNoHp" placeholder="081234567890" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Username Login</label>
+                            <input type="text" id="tendikUsername" required placeholder="tendik1" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Password</label>
+                            <input type="password" id="tendikPassword" required value="tendik123" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs">
+                        </div>
+                    </div>
+                    <div class="pt-3">
+                        <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-xl font-bold transition">Simpan Data Tendik</button>
+                    </div>
+                </form>
+            </div>
+        `);
+    }
+
+    function submitAddTendik(e) {
+        if (e) e.preventDefault();
+        const username = document.getElementById('tendikUsername').value.trim();
+        const password = document.getElementById('tendikPassword').value.trim();
+        const nip = document.getElementById('tendikNip').value.trim();
+        const nama = document.getElementById('tendikNama').value.trim();
+        const jabatan = document.getElementById('tendikJabatan').value.trim();
+        const noHp = document.getElementById('tendikNoHp').value.trim();
+
+        showLoading();
+        google.script.run
+            .withSuccessHandler(res => {
+                hideLoading();
+                if (res.success) {
+                    showAlert('success', res.message);
+                    closeModal();
+                    fetchTendikData();
+                } else {
+                    showAlert('error', res.message);
+                }
+            })
+            .withFailureHandler(err => {
+                hideLoading();
+                showAlert('error', 'Gagal menambah tendik: ' + err);
+            })
+            .addTendik(currentUser.token, username, password, nip, nama, jabatan, noHp);
+    }
+
+    function showEditTendikModal(username) {
+        const item = allTendikData.find(x => x.username === username);
+        if (!item) return;
+
+        showModal(`
+            <div class="bg-white rounded-3xl shadow-2xl p-7 max-w-md w-full relative">
+                <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+                <div class="text-center mb-5">
+                    <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-2 text-xl"><i class="fas fa-user-edit"></i></div>
+                    <h3 class="font-bold text-lg text-slate-800">Edit Data Tendik</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">${item.nama || username}</p>
+                </div>
+                <form onsubmit="submitEditTendik(event, '${username}')" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">NIP / NIK Staf</label>
+                        <input type="text" id="editTendikNip" value="${item.nip || ''}" required class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Nama Lengkap & Gelar</label>
+                        <input type="text" id="editTendikNama" value="${item.nama || ''}" required class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Jabatan / Bagian</label>
+                        <input type="text" id="editTendikJabatan" value="${item.jabatan || ''}" required class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">No. Handphone</label>
+                        <input type="text" id="editTendikNoHp" value="${item.noHp || ''}" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Username Login</label>
+                            <input type="text" id="editTendikUsername" value="${item.username}" required class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Password Baru</label>
+                            <input type="password" id="editTendikPassword" value="${item.password || 'tendik123'}" required class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs">
+                        </div>
+                    </div>
+                    <div class="pt-3">
+                        <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-xl font-bold transition">Update Data Tendik</button>
+                    </div>
+                </form>
+            </div>
+        `);
+    }
+
+    function submitEditTendik(e, oldUsername) {
+        if (e) e.preventDefault();
+        const username = document.getElementById('editTendikUsername').value.trim();
+        const password = document.getElementById('editTendikPassword').value.trim();
+        const nip = document.getElementById('editTendikNip').value.trim();
+        const nama = document.getElementById('editTendikNama').value.trim();
+        const jabatan = document.getElementById('editTendikJabatan').value.trim();
+        const noHp = document.getElementById('editTendikNoHp').value.trim();
+
+        showLoading();
+        google.script.run
+            .withSuccessHandler(res => {
+                hideLoading();
+                if (res.success) {
+                    showAlert('success', res.message);
+                    closeModal();
+                    fetchTendikData();
+                } else {
+                    showAlert('error', res.message);
+                }
+            })
+            .withFailureHandler(err => {
+                hideLoading();
+                showAlert('error', 'Gagal update tendik: ' + err);
+            })
+            .updateTendik(currentUser.token, oldUsername, username, password, nip, nama, jabatan, noHp);
+    }
+
+    function deleteTendikPrompt(username) {
+        if (confirm(`Hapus data tendik/staf "${username}"?`)) {
+            showLoading();
+            google.script.run
+                .withSuccessHandler(res => {
+                    hideLoading();
+                    if (res.success) {
+                        showAlert('success', res.message);
+                        fetchTendikData();
+                    } else {
+                        showAlert('error', res.message);
+                    }
+                })
+                .withFailureHandler(err => {
+                    hideLoading();
+                    showAlert('error', 'Gagal menghapus tendik: ' + err);
+                })
+                .deleteTendik(currentUser.token, username);
+        }
+    }
+
+    function loadTendikDashboard() {
+        stopAndBack(false);
+        setActiveMenu('Dashboard');
+        showView('view-tendik-dashboard');
+
+        document.getElementById('tendikDashboardDate').textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        
+        if (currentUser) {
+            document.getElementById('tendikProfileNama').textContent = currentUser.nama || currentUser.username;
+            document.getElementById('tendikProfileJabatan').textContent = currentUser.jabatan || 'Staf Kependidikan';
+            document.getElementById('tendikProfileNip').textContent = currentUser.nip || '-';
+            document.getElementById('tendikProfileNoHp').textContent = currentUser.noHp || '-';
+
+            google.script.run.withSuccessHandler(res => {
+                if (res.success && res.data) {
+                    document.getElementById('tendikJamDatang').textContent = res.data.jamDatang || '-';
+                    document.getElementById('tendikJamPulang').textContent = res.data.jamPulang || '-';
+                }
+            }).getAbsensiToday(currentUser.nip || currentUser.username);
+        }
+    }
+
+    function doSelfPresensiTendik() {
+        if (!currentUser) return;
+        const targetId = currentUser.nip || currentUser.username;
+
+        showLoading();
+        google.script.run
+            .withSuccessHandler(res => {
+                hideLoading();
+                if (res.success) {
+                    showAlert('success', res.message);
+                    loadTendikDashboard();
+                } else {
+                    showAlert('error', res.message);
+                }
+            })
+            .withFailureHandler(err => {
+                hideLoading();
+                showAlert('error', 'Gagal presensi: ' + err);
+            })
+            .scanAbsensi(targetId, currentUser.role, currentUser.kelas);
+    }
+
+    function loadQRCodeTendik() {
+        if (!currentUser) return;
+        loadQRCodeSiswa(currentUser.nip || currentUser.username, currentUser.nama || currentUser.username, currentUser.jabatan || 'Staf Tendik');
     }
 
     checkSession();
