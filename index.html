@@ -265,6 +265,9 @@
                            <p class="text-sm text-gray-500 mt-1">Pusat kontrol dan monitoring absensi sekolah realtime.</p>
                       </div>
                       <div class="flex items-center gap-3">
+                           <button onclick="showImportExcelModal('siswa')" class="flex items-center space-x-2 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-2 rounded-xl shadow-sm transition transform active:scale-95">
+                                <i class="fas fa-file-excel text-emerald-600"></i> <span>Import Excel / CSV</span>
+                           </button>
                            <button onclick="syncGoogleSheetsToMySQL()" class="flex items-center space-x-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3.5 py-2 rounded-xl shadow-sm transition transform active:scale-95">
                                <i class="fas fa-cloud-download-alt"></i> <span>Sync Google Sheets ke MySQL</span>
                            </button>
@@ -715,6 +718,9 @@
                       </div>
                       
                       <div class="flex items-center gap-2">
+                          <button onclick="showImportExcelModal('siswa')" class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-emerald-100 transition flex items-center gap-1.5">
+                              <i class="fas fa-file-excel"></i> Import Excel
+                          </button>
                           <button onclick="refreshData('siswa')" class="bg-white text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-gray-50 hover:text-indigo-600 transition" title="Perbarui Data">
                               <i class="fas fa-sync-alt"></i>
                           </button>
@@ -787,6 +793,9 @@
                             <h3 class="font-bold text-sm text-gray-800">Manajemen Akun Guru</h3>
                         </div>
                         <div class="flex items-center gap-2">
+                          <button onclick="showImportExcelModal('guru')" class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-emerald-100 transition flex items-center gap-1.5">
+                              <i class="fas fa-file-excel"></i> Import Excel
+                          </button>
                           <button onclick="refreshData('guru')" class="bg-white text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-gray-50 hover:text-purple-600 transition" title="Perbarui Data">
                               <i class="fas fa-sync-alt"></i>
                           </button>
@@ -860,6 +869,9 @@
                             <p class="text-xs text-gray-400">Kelola akun staf TU, Perpustakaan, Laboratorium, dan Keamanan SMANSA</p>
                         </div>
                         <div class="flex items-center gap-2">
+                          <button onclick="showImportExcelModal('tendik')" class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-emerald-100 transition flex items-center gap-1.5">
+                              <i class="fas fa-file-excel"></i> Import Excel
+                          </button>
                           <button onclick="refreshData('tendik')" class="bg-white text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-gray-50 hover:text-amber-600 transition" title="Perbarui Data">
                               <i class="fas fa-sync-alt"></i>
                           </button>
@@ -3720,6 +3732,281 @@
         div.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2.5 text-base"></i> ${message}`;
         document.body.appendChild(div);
         setTimeout(() => { div.style.opacity = '0'; setTimeout(() => div.remove(), 300); }, 3000);
+    }
+
+    let currentImportCategory = 'siswa';
+    let parsedImportRows = [];
+
+    function showImportExcelModal(category = 'siswa') {
+      currentImportCategory = category;
+      parsedImportRows = [];
+      
+      const modalHtml = `
+        <div id="importExcelModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4 animate-fade-in">
+          <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <!-- Header -->
+            <div class="p-5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white flex justify-between items-center">
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                  <i class="fas fa-file-excel text-emerald-300 text-xl"></i>
+                </div>
+                <div>
+                  <h3 class="font-bold text-lg leading-tight">Import Data (.xlsx / .csv)</h3>
+                  <p class="text-xs text-blue-100">Upload file Excel dari komputer ke Database MySQL / cPanel</p>
+                </div>
+              </div>
+              <button onclick="closeImportExcelModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+
+            <!-- Content -->
+            <div class="p-6 overflow-y-auto flex-1 space-y-5">
+              <!-- Kategori Selector -->
+              <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Pilih Target Impor Data:</label>
+                <div class="grid grid-cols-3 gap-3">
+                  <button onclick="selectImportCategory('siswa')" id="btnCatSiswa" class="p-3 rounded-2xl border-2 text-center text-xs font-bold transition ${category === 'siswa' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}">
+                    <i class="fas fa-user-graduate block text-lg mb-1"></i> Data Siswa
+                  </button>
+                  <button onclick="selectImportCategory('guru')" id="btnCatGuru" class="p-3 rounded-2xl border-2 text-center text-xs font-bold transition ${category === 'guru' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}">
+                    <i class="fas fa-chalkboard-teacher block text-lg mb-1"></i> Data Guru
+                  </button>
+                  <button onclick="selectImportCategory('tendik')" id="btnCatTendik" class="p-3 rounded-2xl border-2 text-center text-xs font-bold transition ${category === 'tendik' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}">
+                    <i class="fas fa-user-tie block text-lg mb-1"></i> Data Tendik
+                  </button>
+                </div>
+              </div>
+
+              <!-- Upload Dropzone -->
+              <div class="border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-indigo-50/40 hover:bg-indigo-50 rounded-2xl p-6 text-center transition cursor-pointer relative" onclick="document.getElementById('excelFileInput').click()">
+                <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelFileSelect(event)">
+                <i class="fas fa-cloud-upload-alt text-4xl text-indigo-500 mb-2"></i>
+                <h4 class="font-bold text-sm text-gray-800">Klik di sini untuk Memilih File Excel / CSV</h4>
+                <p class="text-xs text-gray-500 mt-1">Format didukung: <strong>.xlsx, .xls, .csv</strong> (Hasil Dapodik / Spreadsheet)</p>
+              </div>
+
+              <!-- Preview & Progress Status -->
+              <div id="importPreviewArea" class="hidden space-y-3">
+                <div class="flex justify-between items-center bg-emerald-50 border border-emerald-200 p-3 rounded-xl">
+                  <span class="text-xs font-bold text-emerald-800 flex items-center">
+                    <i class="fas fa-check-circle mr-1.5 text-emerald-600"></i>
+                    <span id="importFileStatusInfo">File berhasil dibaca!</span>
+                  </span>
+                  <span id="importRowCountBadge" class="text-xs font-extrabold bg-emerald-600 text-white px-2.5 py-1 rounded-lg">0 Baris</span>
+                </div>
+
+                <!-- Preview Table -->
+                <div class="overflow-x-auto max-h-48 border border-gray-200 rounded-xl">
+                  <table class="w-full text-xs text-left">
+                    <thead class="bg-gray-100 font-bold text-gray-700 sticky top-0" id="importPreviewHeader"></thead>
+                    <tbody class="divide-y divide-gray-100" id="importPreviewBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+              <button onclick="closeImportExcelModal()" class="px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-bold text-xs hover:bg-gray-100">Batal</button>
+              <button id="btnSubmitImport" onclick="executeImportToDatabase()" disabled class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2">
+                <i class="fas fa-rocket"></i>
+                <span>Mulai Import ke Database</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('modalContainer').innerHTML = modalHtml;
+    }
+
+    function closeImportExcelModal() {
+      document.getElementById('modalContainer').innerHTML = '';
+    }
+
+    function selectImportCategory(cat) {
+      currentImportCategory = cat;
+      ['siswa', 'guru', 'tendik'].forEach(c => {
+        const btn = document.getElementById('btnCat' + c.charAt(0).toUpperCase() + c.slice(1));
+        if (btn) {
+          if (c === cat) {
+            btn.className = 'p-3 rounded-2xl border-2 text-center text-xs font-bold transition border-blue-600 bg-blue-50 text-blue-700';
+          } else {
+            btn.className = 'p-3 rounded-2xl border-2 text-center text-xs font-bold transition border-gray-200 text-gray-600 hover:bg-gray-50';
+          }
+        }
+      });
+    }
+
+    function handleExcelFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+          if (!jsonRows || jsonRows.length < 2) {
+            Swal.fire('Format Salah', 'File Excel kosong atau tidak berisi data yang cukup.', 'error');
+            return;
+          }
+
+          let headerIdx = 0;
+          for (let i = 0; i < Math.min(10, jsonRows.length); i++) {
+            const rowStr = jsonRows[i].join(' ').toLowerCase();
+            if (rowStr.includes('nama') || rowStr.includes('nisn') || rowStr.includes('nip')) {
+              headerIdx = i;
+              break;
+            }
+          }
+
+          const headers = jsonRows[headerIdx].map(h => String(h).trim());
+          const rawDataRows = jsonRows.slice(headerIdx + 1);
+
+          parsedImportRows = [];
+
+          rawDataRows.forEach((r, rowIdx) => {
+            if (!r || r.length === 0 || !r.some(val => String(val).trim() !== '')) return;
+
+            if (currentImportCategory === 'siswa') {
+              let nama = '', nisn = '', kelas = 'X MIPA 1', jk = 'Laki-laki', hp = '-';
+              headers.forEach((h, colIdx) => {
+                const hLow = h.toLowerCase();
+                const val = String(r[colIdx] || '').trim();
+                if (!nama && (hLow.includes('nama') || hLow === 'pd')) nama = val;
+                if (!nisn && (hLow.includes('nisn') || hLow.includes('nipd'))) nisn = val;
+                if (hLow.includes('kelas') || hLow.includes('rombel')) kelas = val;
+                if (hLow.includes('jk') || hLow.includes('kelamin')) jk = val.startsWith('P') ? 'Perempuan' : 'Laki-laki';
+                if (hLow.includes('hp') || hLow.includes('telepon')) hp = val;
+              });
+              if (!nama && r[4] && isNaN(r[4])) nama = String(r[4]).trim();
+              if (!nama && r[3] && isNaN(r[3])) nama = String(r[3]).trim();
+              if (!nisn) {
+                for (let c of r) {
+                  const strC = String(c).trim();
+                  if (strC.length >= 8 && !isNaN(strC) && !strC.startsWith('1108')) { nisn = strC; break; }
+                }
+              }
+              if (nama) {
+                parsedImportRows.push({ nama, nisn: nisn || ('308' + String(rowIdx + 1000000).padStart(7, '0')), kelas: kelas || 'X', jenisKelamin: jk, noHp: hp });
+              }
+            } else if (currentImportCategory === 'guru') {
+              let nama = '', nip = '', jabatan = 'Guru Mata Pelajaran', jk = 'Laki-laki', hp = '-';
+              headers.forEach((h, colIdx) => {
+                const hLow = h.toLowerCase();
+                const val = String(r[colIdx] || '').trim();
+                if (!nama && hLow.includes('nama')) nama = val;
+                if (!nip && hLow.includes('nip')) nip = val;
+                if (hLow.includes('jabatan') || hLow.includes('ptk')) jabatan = val;
+                if (hLow.includes('jk') || hLow.includes('kelamin')) jk = val.startsWith('P') ? 'Perempuan' : 'Laki-laki';
+                if (hLow.includes('hp') || hLow.includes('telepon')) hp = val;
+              });
+              if (!nama && r[2]) nama = String(r[2]).trim();
+              if (!nip && r[7]) nip = String(r[7]).trim();
+              if (nama) {
+                const cleanNip = nip || ('198001012023' + String(rowIdx + 1000).padStart(4, '0'));
+                parsedImportRows.push({ nama, nip: cleanNip, jabatan, jenisKelamin: jk, username: cleanNip, password: 'guru123', noHp: hp });
+              }
+            } else {
+              let nama = '', nip = '', jabatan = 'Staf Kependidikan', jk = 'Perempuan', hp = '-';
+              headers.forEach((h, colIdx) => {
+                const hLow = h.toLowerCase();
+                const val = String(r[colIdx] || '').trim();
+                if (!nama && hLow.includes('nama')) nama = val;
+                if (!nip && hLow.includes('nip')) nip = val;
+                if (hLow.includes('jabatan') || hLow.includes('ptk')) jabatan = val;
+                if (hLow.includes('jk') || hLow.includes('kelamin')) jk = val.startsWith('P') ? 'Perempuan' : 'Laki-laki';
+                if (hLow.includes('hp') || hLow.includes('telepon')) hp = val;
+              });
+              if (!nama && r[3]) nama = String(r[3]).trim();
+              if (!nip && r[7]) nip = String(r[7]).trim();
+              if (nama) {
+                const cleanNip = nip || ('198501012024' + String(rowIdx + 1000).padStart(4, '0'));
+                parsedImportRows.push({ nama, nip: cleanNip, jabatan, jenisKelamin: jk, username: cleanNip, password: 'tendik123', noHp: hp });
+              }
+            }
+          });
+
+          if (parsedImportRows.length === 0) {
+            Swal.fire('Data Tidak Ditemukan', 'Tidak dapat mengenali kolom nama/NISN/NIP di file ini.', 'warning');
+            return;
+          }
+
+          document.getElementById('importPreviewArea').classList.remove('hidden');
+          document.getElementById('importRowCountBadge').textContent = parsedImportRows.length + ' Baris Data';
+          document.getElementById('importFileStatusInfo').textContent = `Terdeteksi ${parsedImportRows.length} data ${currentImportCategory.toUpperCase()}`;
+          document.getElementById('btnSubmitImport').removeAttribute('disabled');
+
+          let hHtml = `<tr><th class="p-2 border-b">No</th><th class="p-2 border-b">Nama</th><th class="p-2 border-b">${currentImportCategory === 'siswa' ? 'NISN' : 'NIP'}</th><th class="p-2 border-b">${currentImportCategory === 'siswa' ? 'Kelas' : 'Jabatan'}</th></tr>`;
+          document.getElementById('importPreviewHeader').innerHTML = hHtml;
+
+          let bHtml = '';
+          parsedImportRows.slice(0, 5).forEach((row, i) => {
+            bHtml += `
+              <tr class="hover:bg-gray-50">
+                <td class="p-2 border-b font-mono">${i + 1}</td>
+                <td class="p-2 border-b font-bold">${row.nama}</td>
+                <td class="p-2 border-b text-indigo-600 font-mono">${row.nisn || row.nip}</td>
+                <td class="p-2 border-b">${row.kelas || row.jabatan}</td>
+              </tr>
+            `;
+          });
+          if (parsedImportRows.length > 5) {
+            bHtml += `<tr><td colspan="4" class="p-2 text-center text-gray-400 italic font-medium">+ ${parsedImportRows.length - 5} data lainnya...</td></tr>`;
+          }
+          document.getElementById('importPreviewBody').innerHTML = bHtml;
+
+        } catch (err) {
+          console.error(err);
+          Swal.fire('Gagal Membaca File', 'Terjadi kesalahan saat memproses file Excel: ' + err.message, 'error');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    async function executeImportToDatabase() {
+      if (!parsedImportRows || parsedImportRows.length === 0) return;
+
+      const btn = document.getElementById('btnSubmitImport');
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fas fa-spinner animate-spin"></i> <span>Mengimpor Data...</span>`;
+
+      try {
+        let result = null;
+        if (currentImportCategory === 'siswa') {
+          result = await BackendAPI.importSiswaBulk('tok_admin', parsedImportRows);
+        } else if (currentImportCategory === 'guru') {
+          result = await BackendAPI.importGuruBulk('tok_admin', parsedImportRows);
+        } else {
+          result = await BackendAPI.importTendikBulk('tok_admin', parsedImportRows);
+        }
+
+        closeImportExcelModal();
+
+        if (result && result.success) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Import Berhasil!',
+            text: `Berhasil menambahkan ${result.added || parsedImportRows.length} data ${currentImportCategory.toUpperCase()} ke Database!`,
+            confirmButtonColor: '#4F46E5'
+          });
+          if (currentImportCategory === 'siswa' && typeof loadDataSiswa === 'function') loadDataSiswa();
+          if (currentImportCategory === 'guru' && typeof loadDataGuru === 'function') loadDataGuru();
+          if (currentImportCategory === 'tendik' && typeof loadDataTendik === 'function') loadDataTendik();
+          if (typeof loadAdminDashboard === 'function') loadAdminDashboard();
+        } else {
+          Swal.fire('Gagal Import', result ? result.message : 'Terjadi kesalahan saat mengimpor data ke database.', 'error');
+        }
+      } catch (err) {
+        closeImportExcelModal();
+        Swal.fire('Error Import', err.message, 'error');
+      }
     }
 
     function showAddSiswaModal() { showModal(createSiswaModal()); }
