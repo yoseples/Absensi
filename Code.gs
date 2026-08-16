@@ -27,7 +27,7 @@ function doGet(e) {
     .setTitle('Presensi - Sistem Absensi SMA Negeri 1 Lhoksukon')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .setFaviconUrl('https://raw.githubusercontent.com/yoseples/Absensi/main/logo.png');
+    .setFaviconUrl('favicon.png');
 }
 
 // B. HTTP POST API Endpoint (Wajib ada untuk cPanel / Website Eksternal)
