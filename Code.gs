@@ -1806,9 +1806,14 @@ function setupInitialData() {
 }
 
 function changePassword(token, username, oldPassword, newPassword) {
+  return changeCredentials(token, username, username, oldPassword, newPassword);
+}
+
+function changeCredentials(token, oldUsername, newUsername, oldPassword, newPassword) {
   try {
     const ss = getSpreadsheet();
-    const cleanU = String(username).trim().toLowerCase();
+    const cleanOld = String(oldUsername).trim().toLowerCase();
+    const cleanNew = String(newUsername).trim();
     
     // 1. Update Sheet Users
     const usersSheet = ss.getSheetByName('users');
@@ -1817,8 +1822,9 @@ function changePassword(token, username, oldPassword, newPassword) {
       for (let i = 1; i < data.length; i++) {
         const uName = String(data[i][0]).trim().toLowerCase();
         const uNip = data[i][4] ? String(data[i][4]).trim().toLowerCase() : '';
-        if (uName === cleanU || uNip === cleanU) {
-          usersSheet.getRange(i + 1, 2).setValue("'" + newPassword);
+        if (uName === cleanOld || uNip === cleanOld) {
+          if (cleanNew) usersSheet.getRange(i + 1, 1).setValue("'" + cleanNew);
+          if (newPassword) usersSheet.getRange(i + 1, 2).setValue("'" + newPassword);
           break;
         }
       }
@@ -1831,8 +1837,9 @@ function changePassword(token, username, oldPassword, newPassword) {
       for (let i = 1; i < data.length; i++) {
         const gNip = String(data[i][0]).trim().toLowerCase();
         const gUser = String(data[i][4] || '').trim().toLowerCase();
-        if (gNip === cleanU || gUser === cleanU) {
-          guruSheet.getRange(i + 1, 6).setValue("'" + newPassword);
+        if (gNip === cleanOld || gUser === cleanOld) {
+          if (cleanNew) guruSheet.getRange(i + 1, 5).setValue("'" + cleanNew);
+          if (newPassword) guruSheet.getRange(i + 1, 6).setValue("'" + newPassword);
           break;
         }
       }
@@ -1845,14 +1852,15 @@ function changePassword(token, username, oldPassword, newPassword) {
       for (let i = 1; i < data.length; i++) {
         const tNip = String(data[i][0]).trim().toLowerCase();
         const tUser = String(data[i][4] || '').trim().toLowerCase();
-        if (tNip === cleanU || tUser === cleanU) {
-          tendikSheet.getRange(i + 1, 6).setValue("'" + newPassword);
+        if (tNip === cleanOld || tUser === cleanOld) {
+          if (cleanNew) tendikSheet.getRange(i + 1, 5).setValue("'" + cleanNew);
+          if (newPassword) tendikSheet.getRange(i + 1, 6).setValue("'" + newPassword);
           break;
         }
       }
     }
 
-    return { success: true, message: 'Password berhasil diubah di Google Sheet!' };
+    return { success: true, message: 'Username & Password berhasil diubah di Google Sheet!' };
   } catch (e) {
     return { success: false, message: e.toString() };
   }
