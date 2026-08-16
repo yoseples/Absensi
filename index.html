@@ -1073,6 +1073,11 @@
     /**
      * STANDALONE LOCAL DATABASE ADAPTER (GitHub Pages Ready)
      */
+    // ⚠️ ISI DENGAN URL WEB APP GOOGLE APPS SCRIPT ANDA (OPSIONAL)
+    // Format: 'https://script.google.com/macros/s/AKfycb.../exec'
+    // Jika diisi, seluruh pengguna otomatis terhubung ke Google Sheet Live
+    const DEFAULT_GAS_API_URL = '';
+
     const DB_KEYS = {
       SISWA: 'absensi_db_siswa',
       GURU: 'absensi_db_guru',
@@ -1524,7 +1529,7 @@
                   return function(...args) {
                     (async () => {
                       try {
-                        const apiUrl = (localStorage.getItem('absensi_api_url') || '').trim();
+                        const apiUrl = (localStorage.getItem('absensi_api_url') || DEFAULT_GAS_API_URL || '').trim();
                         let res;
                         if (apiUrl) {
                           const resp = await fetch(apiUrl, {
