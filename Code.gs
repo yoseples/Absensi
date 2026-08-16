@@ -6,7 +6,7 @@
 // ⚠️ WAJIB DIUBAH: Ganti SPREADSHEET_ID dengan ID Google Sheet Anda
 // Contoh URL: https://docs.google.com/spreadsheets/d/1ABC123XYZ.../edit
 // Maka ID-nya adalah: 1ABC123XYZ...
-const SPREADSHEET_ID = 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA';
+const SPREADSHEET_ID = '1iXhTqSuMLAEPX1osyK78_GZkYVGoRpXGKxC4HwNmqx8';
 
 // Helper untuk mendapatkan objek Spreadsheet
 function getSpreadsheet() {
@@ -47,6 +47,29 @@ function doPost(e) {
   } catch (error) {
     return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'API Error: ' + error.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function getDashboardBundle(identifier, role, kelas) {
+  try {
+    const todayAbsensi = getAbsensiToday(identifier);
+    const configRes = getAppConfig();
+    let monitoringRes = { success: true, data: [] };
+
+    if (role === 'admin' || role === 'guru') {
+      monitoringRes = getMonitoringRealtime(role === 'guru' ? kelas : null);
+    }
+
+    return {
+      success: true,
+      todayAbsensi: todayAbsensi.success ? todayAbsensi.data : null,
+      isLibur: todayAbsensi.isLibur || false,
+      keteranganLibur: todayAbsensi.keteranganLibur || '',
+      monitoring: monitoringRes.success ? monitoringRes.data : [],
+      config: configRes.success ? configRes.data : null
+    };
+  } catch(e) {
+    return { success: false, message: e.toString() };
   }
 }
 

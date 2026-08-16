@@ -1499,6 +1499,23 @@
         return { success: true, data: list };
       },
 
+      getDashboardBundle: async (identifier, role, kelas) => {
+        const todayAbsenRes = await window.BackendAPI.getAbsensiToday(identifier);
+        const configRes = await window.BackendAPI.getAppConfig();
+        let monitoringRes = { success: true, data: [] };
+        if (role === 'admin' || role === 'guru') {
+          monitoringRes = await window.BackendAPI.getMonitoringRealtime(role === 'guru' ? kelas : null);
+        }
+        return {
+          success: true,
+          todayAbsensi: todayAbsenRes.success ? todayAbsenRes.data : null,
+          isLibur: todayAbsenRes.isLibur || false,
+          keteranganLibur: todayAbsenRes.keteranganLibur || '',
+          monitoring: monitoringRes.success ? monitoringRes.data : [],
+          config: configRes.success ? configRes.data : null
+        };
+      },
+
       addTendik: async (token, username, password, nip, nama, jabatan, noHp) => {
         const list = JSON.parse(localStorage.getItem(DB_KEYS.TENDIK) || '[]');
         const cleanU = String(username).replace(/^'/, '');
