@@ -1264,11 +1264,39 @@
   <!-- ========================================== -->
   <script>
     /**
-     * STANDALONE LOCAL DATABASE ADAPTER (GitHub Pages Ready)
+     * UNIVERSAL PROXY POLYFILL UNTUK GOOGLE.SCRIPT.RUN & CPANEL API.PHP
      */
-    // ⚠️ ISI DENGAN URL WEB APP GOOGLE APPS SCRIPT ANDA (OPSIONAL)
-    // Format: 'https://script.google.com/macros/s/AKfycb.../exec'
-    // Jika diisi, seluruh pengguna otomatis terhubung ke Google Sheet Live
+    (function() {
+      function makeRunner(onSuccess, onFailure) {
+        return new Proxy({}, {
+          get: function(target, prop) {
+            if (prop === 'withSuccessHandler') {
+              return function(fn) { return makeRunner(fn, onFailure); };
+            }
+            if (prop === 'withFailureHandler') {
+              return function(fn) { return makeRunner(onSuccess, fn); };
+            }
+            return function(...args) {
+              const method = prop;
+              if (window.BackendAPI && typeof window.BackendAPI[method] === 'function') {
+                Promise.resolve(window.BackendAPI[method](...args))
+                  .then(res => { if (typeof onSuccess === 'function') onSuccess(res); })
+                  .catch(err => { if (typeof onFailure === 'function') onFailure(err); else console.error(err); });
+              } else {
+                console.warn('BackendAPI Method not found:', method);
+              }
+            };
+          }
+        });
+      }
+
+      if (typeof window.google === 'undefined' || typeof window.google.script === 'undefined' || typeof window.google.script.run === 'undefined') {
+        window.google = window.google || {};
+        window.google.script = window.google.script || {};
+        window.google.script.run = makeRunner();
+      }
+    })();
+
     const DEFAULT_GAS_API_URL = '';
 
     const DB_KEYS = {
@@ -1337,8 +1365,30 @@
       return d.toTimeString().substring(0, 5);
     }
 
+    async function callPhpApi(action, ...args) {
+      try {
+        const response = await fetch('api.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: action, args: args })
+        });
+        if (response.ok) {
+          const resJson = await response.json();
+          if (resJson && typeof resJson.success !== 'undefined') {
+            return resJson;
+          }
+        }
+      } catch (err) {
+        // Fallback
+      }
+      return null;
+    }
+
     const BackendAPI = {
       login: async (username, password, nisn) => {
+        const phpRes = await callPhpApi('login', username, password, nisn);
+        if (phpRes && phpRes.success) return phpRes;
+
         const inputUser = String(username || nisn || '').trim();
         const inputPass = String(password || '').trim();
 
@@ -1412,6 +1462,8 @@
       },
 
       getSiswaList: async () => {
+        const phpRes = await callPhpApi('getSiswaList');
+        if (phpRes && phpRes.success) return phpRes;
         const list = JSON.parse(localStorage.getItem(DB_KEYS.SISWA) || '[]');
         return { success: true, data: list };
       },
@@ -1452,6 +1504,8 @@
       },
 
       getGuruList: async (token) => {
+        const phpRes = await callPhpApi('getGuruList');
+        if (phpRes && phpRes.success) return phpRes;
         const list = JSON.parse(localStorage.getItem(DB_KEYS.GURU) || '[]');
         return { success: true, data: list };
       },
@@ -1477,28 +1531,32 @@
             username: String(username).replace(/^'/, ''),
             password: String(password).replace(/^'/, ''),
             role: list[idx].role || 'guru',
-            kelas: kelas || ''
+            kelas: kelas || list[idx].kelas || ''
           };
           localStorage.setItem(DB_KEYS.GURU, JSON.stringify(list));
-          return { success: true, message: 'Data guru berhasil diperbarui' };
+          return { success: true, message: 'Data Guru berhasil diperbarui' };
         }
         return { success: false, message: 'Guru tidak ditemukan' };
       },
 
       deleteGuru: async (token, username) => {
         let list = JSON.parse(localStorage.getItem(DB_KEYS.GURU) || '[]');
-        const clean = String(username).replace(/^'/, '');
-        list = list.filter(x => x.username.toLowerCase() !== clean.toLowerCase());
+        const cleanOld = String(username).replace(/^'/, '');
+        list = list.filter(x => x.username.toLowerCase() !== cleanOld.toLowerCase());
         localStorage.setItem(DB_KEYS.GURU, JSON.stringify(list));
         return { success: true, message: 'Guru berhasil dihapus' };
       },
 
       getTendikList: async (token) => {
+        const phpRes = await callPhpApi('getTendikList');
+        if (phpRes && phpRes.success) return phpRes;
         const list = JSON.parse(localStorage.getItem(DB_KEYS.TENDIK) || '[]');
         return { success: true, data: list };
       },
 
       getDashboardBundle: async (identifier, role, kelas) => {
+        const phpRes = await callPhpApi('getDashboardBundle', identifier, role, kelas);
+        if (phpRes && phpRes.success) return phpRes;
         const todayAbsenRes = await window.BackendAPI.getAbsensiToday(identifier);
         const configRes = await window.BackendAPI.getAppConfig();
         let monitoringRes = { success: true, data: [] };
@@ -1545,21 +1603,21 @@
             role: 'tendik',
             nip: String(nip || '-').replace(/^'/, ''),
             nama: nama || username,
-            jabatan: jabatan || 'Staf Kependidikan',
+            jabatan: jabatan || list[idx].jabatan || 'Staf Kependidikan',
             noHp: String(noHp || '-').replace(/^'/, '')
           };
           localStorage.setItem(DB_KEYS.TENDIK, JSON.stringify(list));
           return { success: true, message: 'Data Tendik berhasil diperbarui' };
         }
-        return { success: false, message: 'Data Tendik tidak ditemukan' };
+        return { success: false, message: 'Tendik tidak ditemukan' };
       },
 
       deleteTendik: async (token, username) => {
         let list = JSON.parse(localStorage.getItem(DB_KEYS.TENDIK) || '[]');
-        const clean = String(username).replace(/^'/, '');
-        list = list.filter(x => x.username.toLowerCase() !== clean.toLowerCase());
+        const cleanOld = String(username).replace(/^'/, '');
+        list = list.filter(x => x.username.toLowerCase() !== cleanOld.toLowerCase());
         localStorage.setItem(DB_KEYS.TENDIK, JSON.stringify(list));
-        return { success: true, message: 'Data Tendik berhasil dihapus' };
+        return { success: true, message: 'Tendik berhasil dihapus' };
       },
 
       getAppConfig: async () => {
