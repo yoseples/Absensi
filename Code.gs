@@ -1,0 +1,1330 @@
+// ============================================================================
+// APLIKASI PRESENSI SMA NEGERI 1 LHOKSUKON (SMANSA LHOKSUKON)
+// GOOGLE APPS SCRIPT BACKEND (Code.gs)
+// ============================================================================
+
+// ⚠️ WAJIB DIUBAH: Ganti SPREADSHEET_ID dengan ID Google Sheet Anda
+// Contoh URL: https://docs.google.com/spreadsheets/d/1ABC123XYZ.../edit
+// Maka ID-nya adalah: 1ABC123XYZ...
+const SPREADSHEET_ID = 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA';
+
+// Helper untuk mendapatkan objek Spreadsheet
+function getSpreadsheet() {
+  if (SPREADSHEET_ID === 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA') {
+    return SpreadsheetApp.getActiveSpreadsheet();
+  }
+  return SpreadsheetApp.openById(SPREADSHEET_ID);
+}
+
+// ============================================================================
+// 1. MAIN ENTRY POINTS (WEB APP & API ENDPOINT UNTUK CPANEL/HOSTING)
+// ============================================================================
+
+// A. Tampilan Web App langsung jika dibuka di browser via Google Apps Script
+function doGet(e) {
+  const template = HtmlService.createTemplateFromFile('index');
+  return template.evaluate()
+    .setTitle('Presensi - Sistem Absensi SMA Negeri 1 Lhoksukon')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setFaviconUrl('https://raw.githubusercontent.com/yoseples/Absensi/main/logo.png');
+}
+
+// B. HTTP POST API Endpoint (Wajib ada untuk cPanel / Website Eksternal)
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const action = data.action;
+    const args = data.args || [];
+
+    if (typeof this[action] === 'function') {
+      const result = this[action](...args);
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'Action "' + action + '" tidak ditemukan di server.' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'API Error: ' + error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// ============================================================================
+// 2. AUTENTIKASI, SESSION & KEAMANAN TOKEN
+// ============================================================================
+
+function login(username, password, nisn) {
+  try {
+    const ss = getSpreadsheet();
+    const usersSheet = ss.getSheetByName('users');
+    const siswaSheet = ss.getSheetByName('siswa');
+
+    let userFound = null;
+
+    // A. Login SISWA (Gunakan NISN)
+    if (nisn || (username && !isNaN(username))) {
+      const targetNisn = String(nisn || username).trim();
+      const siswaData = siswaSheet.getDataRange().getValues();
+      for (let i = 1; i < siswaData.length; i++) {
+        if (String(siswaData[i][1]).trim() === targetNisn) { 
+          userFound = {
+            role: 'siswa',
+            identifier: String(siswaData[i][1]).trim(), // NISN
+            nama: siswaData[i][0],
+            kelas: siswaData[i][8]
+          };
+          break;
+        }
+      }
+      if (!userFound) return { success: false, message: 'NISN ' + targetNisn + ' tidak ditemukan di database.' };
+    } 
+    // B. Login ADMIN & GURU (Username / Password)
+    else {
+      const targetUser = String(username).trim();
+      const targetPass = String(password).trim();
+      const userData = usersSheet.getDataRange().getValues();
+      
+      for (let i = 1; i < userData.length; i++) {
+        if (String(userData[i][0]).trim().toLowerCase() === targetUser.toLowerCase() && String(userData[i][1]).trim() === targetPass) {
+          userFound = {
+            role: userData[i][2],
+            identifier: userData[i][0], // Username
+            nama: userData[i][0],
+            kelas: userData[i][3] || "" 
+          };
+          break;
+        }
+      }
+      if (!userFound) return { success: false, message: 'Username atau password salah.' };
+    }
+
+    // Generate Token Sesi (UUID)
+    const token = Utilities.getUuid();
+    const expiry = new Date();
+    expiry.setTime(expiry.getTime() + (24 * 60 * 60 * 1000)); // 24 jam
+
+    let sessionSheet = ss.getSheetByName('sessions');
+    if (!sessionSheet) {
+      sessionSheet = ss.insertSheet('sessions');
+      sessionSheet.appendRow(['Token', 'Identifier', 'Role', 'Expiry']);
+      sessionSheet.getRange("D:D").setNumberFormat("yyyy-mm-dd hh:mm:ss");
+    }
+
+    sessionSheet.appendRow([
+      token, 
+      userFound.identifier, 
+      userFound.role, 
+      expiry
+    ]);
+
+    return {
+      success: true,
+      token: token,
+      role: userFound.role,
+      username: userFound.identifier,
+      nama: userFound.nama,
+      kelas: userFound.kelas,
+      nisn: (userFound.role === 'siswa') ? userFound.identifier : null
+    };
+
+  } catch (error) {
+    return { success: false, message: "Login Error: " + error.toString() };
+  }
+}
+
+function verifyUser(token, requiredRole) {
+  const ss = getSpreadsheet();
+  const sheet = ss.getSheetByName('sessions');
+  if (!sheet) return true; // Jika sheet session belum dibuat, izinkan sementara
+  
+  const data = sheet.getDataRange().getValues();
+  const now = new Date();
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === token) {
+      if (data[i][3] instanceof Date && data[i][3] > now) {
+        if (requiredRole && data[i][2] !== requiredRole && data[i][2] !== 'admin') {
+           throw new Error("Akses Ditolak: Anda tidak memiliki izin.");
+        }
+        return true;
+      } else {
+        throw new Error("Sesi berakhir. Silakan login ulang.");
+      }
+    }
+  }
+  return true; // Fleksibel untuk kemudahan akses
+}
+
+// ============================================================================
+// 3. MANAJEMEN SISWA (CRUD)
+// ============================================================================
+
+function getSiswaList() {
+  try {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName('siswa');
+    if (!sheet) return { success: true, data: [] };
+    
+    const data = sheet.getDataRange().getValues();
+    const siswaList = [];
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0]) { 
+        let rawTgl = data[i][3];
+        let tglLahir = '';
+
+        if (rawTgl instanceof Date) {
+          tglLahir = Utilities.formatDate(rawTgl, 'Asia/Jakarta', 'yyyy-MM-dd');
+        } else if (typeof rawTgl === 'string') {
+          let cleanTgl = rawTgl.replace(/'/g, "").trim();
+          if (cleanTgl.includes('-')) {
+            let parts = cleanTgl.split('-');
+            if (parts[2] && parts[2].length === 4) {
+               tglLahir = parts[2] + '-' + parts[1] + '-' + parts[0];
+            } else {
+               tglLahir = cleanTgl;
+            }
+          }
+        }
+
+        siswaList.push({
+          nama: data[i][0],
+          nisn: String(data[i][1]).replace(/^'/, ''),
+          jenisKelamin: data[i][2],
+          tanggalLahir: tglLahir,
+          agama: data[i][4],
+          namaAyah: data[i][5],
+          namaIbu: data[i][6],
+          noHp: String(data[i][7]).replace(/^'/, ''),
+          kelas: data[i][8],
+          alamat: data[i][9]
+        });
+      }
+    }
+    
+    return { success: true, data: siswaList };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+function getSiswaByNisn(nisn) {
+  try {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName('siswa');
+    const data = sheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][1]).trim() == String(nisn).trim()) {
+        let tglLahir = '';
+        if (data[i][3]) {
+          tglLahir = Utilities.formatDate(new Date(data[i][3]), 'Asia/Jakarta', 'yyyy-MM-dd');
+        }
+
+        return {
+          success: true,
+          data: {
+            nama: data[i][0],
+            nisn: String(data[i][1]).replace(/^'/, ''),
+            jenisKelamin: data[i][2],
+            tanggalLahir: tglLahir,
+            agama: data[i][4],
+            namaAyah: data[i][5],
+            namaIbu: data[i][6],
+            noHp: String(data[i][7]).replace(/^'/, ''),
+            kelas: data[i][8],
+            alamat: data[i][9]
+          }
+        };
+      }
+    }
+    
+    return { success: false, message: 'Siswa tidak ditemukan' };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+function addSiswa(token, siswaData) { 
+  try {
+    verifyUser(token, 'admin'); 
+
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName('siswa');
+    const data = sheet.getDataRange().getValues();
+    const cleanNisn = String(siswaData.nisn).trim();
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][1]).trim() == cleanNisn) {
+        return { success: false, message: 'NISN sudah terdaftar!' };
+      }
+    }
+    
+    let tglSimpan = siswaData.tanggalLahir;
+    if (tglSimpan && tglSimpan.includes('-')) {
+      let parts = tglSimpan.split('-');
+      if (parts[0].length === 4) {
+        tglSimpan = "'" + parts[2] + '-' + parts[1] + '-' + parts[0];
+      }
+    }
+
+    sheet.appendRow([
+      siswaData.nama,
+      "'" + cleanNisn,
+      siswaData.jenisKelamin,
+      tglSimpan,
+      siswaData.agama,
+      siswaData.namaAyah,
+      siswaData.namaIbu,
+      "'" + siswaData.noHp,
+      siswaData.kelas,
+      siswaData.alamat
+    ]);
+    return { success: true, message: 'Siswa berhasil ditambahkan' };
+
+  } catch (error) {
+    return { success: false, message: "Gagal: " + error.message };
+  }
+}
+
+function updateSiswa(token, oldNisn, siswaData) {
+  try {
+    verifyUser(token, 'admin');
+
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName('siswa');
+    const data = sheet.getDataRange().getValues();
+    const cleanOld = String(oldNisn).trim();
+    
+    let tglSimpan = siswaData.tanggalLahir;
+    if (tglSimpan && tglSimpan.includes('-')) {
+       let parts = tglSimpan.split('-');
+       if(parts[0].length === 4) {
+           tglSimpan = "'" + parts[2] + '-' + parts[1] + '-' + parts[0];
+       }
+    }
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][1]).trim() == cleanOld) {
+        sheet.getRange(i + 1, 1, 1, 10).setValues([[
+          siswaData.nama,
+          "'" + siswaData.nisn,
+          siswaData.jenisKelamin,
+          tglSimpan,
+          siswaData.agama,
+          siswaData.namaAyah,
+          siswaData.namaIbu,
+          "'" + siswaData.noHp,
+          siswaData.kelas,
+          siswaData.alamat
+        ]]);
+        return { success: true, message: 'Data siswa berhasil diupdate' };
+      }
+    }
+    
+    return { success: false, message: 'Siswa tidak ditemukan' };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+function deleteSiswa(token, nisn) {
+  try {
+    verifyUser(token, 'admin'); 
+
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName('siswa');
+    const data = sheet.getDataRange().getValues();
+    const cleanNisn = String(nisn).trim();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][1]).trim() === cleanNisn) {
+        sheet.deleteRow(i + 1);
+        return { success: true, message: 'Data siswa berhasil dihapus.' };
+      }
+    }
+    
+    return { success: false, message: 'Data siswa tidak ditemukan.' };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+}
+
+// ============================================================================
+// 4. MANAJEMEN GURU & WALI KELAS (CRUD)
+// ============================================================================
+
+function getGuruList(token) {
+  try {
+    verifyUser(token, 'admin'); 
+
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName('users');
+    if (!sheet) return { success: true, data: [] };
+    
+    const data = sheet.getDataRange().getValues();
+    const guruList = [];
+
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][2] == 'guru' || data[i][2] == 'admin') {
+        guruList.push({
+          username: String(data[i][0]),
+          password: String(data[i][1]),
+          role: data[i][2],
+          kelas: data[i][3] || ""
+        });
+      }
+    }
+
+    return { success: true, data: guruList };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+}
+
+function addGuru(token, username, password, kelas) {
+  try {
+    verifyUser(token, 'admin');
+
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName('users');
+    const data = sheet.getDataRange().getValues();
+    const cleanU = String(username).trim();
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]).trim().toLowerCase() === cleanU.toLowerCase()) {
+        return { success: false, message: 'Username sudah terdaftar' };
+      }
+    }
+    sheet.appendRow(["'" + cleanU, "'" + password, 'guru', kelas || '']);
+    return { success: true, message: 'Guru berhasil ditambahkan' };
+  } catch (error) {
+    return { success: false, message: "Gagal: " + error.message };
+  }
+}
+
+function updateGuru(token, oldUsername, newUsername, password, kelas) {
+  try {
+    verifyUser(token, 'admin');
+
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName('users');
+    const data = sheet.getDataRange().getValues();
+    const cleanOld = String(oldUsername).trim().toLowerCase();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]).trim().toLowerCase() === cleanOld) {
+        sheet.getRange(i + 1, 1, 1, 4).setValues([["'" + newUsername, "'" + password, data[i][2] || 'guru', kelas || '']]);
+        return { success: true, message: 'Data guru berhasil diupdate' };
+      }
+    }
+    return { success: false, message: 'Guru tidak ditemukan' };
+  } catch (error) {
+    return { success: false, message: "Gagal: " + error.message };
+  }
+}
+
+function deleteGuru(token, username) {
+  try {
+    verifyUser(token, 'admin');
+
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName('users');
+    const data = sheet.getDataRange().getValues();
+    const cleanU = String(username).trim().toLowerCase();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]).trim().toLowerCase() === cleanU) {
+        sheet.deleteRow(i + 1);
+        return { success: true, message: 'Guru berhasil dihapus' };
+      }
+    }
+    return { success: false, message: 'Guru tidak ditemukan' };
+  } catch (error) {
+    return { success: false, message: "Gagal: " + error.message };
+  }
+}
+
+// ============================================================================
+// 5. PROCESS PRESENSI & SCANNER QR CODE
+// ============================================================================
+
+function scanAbsensi(nisn, scannerRole, scannerKelas) {
+  try {
+    const ss = getSpreadsheet();
+    const today = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd');
+    const nowTime = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'HH:mm');
+    
+    const configResult = getAppConfig();
+    const config = configResult.success ? configResult.data : {
+      jam_masuk_akhir: '07:15',
+      jam_pulang_mulai: '15:00',
+      jam_pulang_akhir: '17:00'
+    };
+
+    // Cek Hari Libur
+    const liburSheet = ss.getSheetByName('hari_libur');
+    if (liburSheet) {
+      const liburData = liburSheet.getDataRange().getValues();
+      for (let i = 1; i < liburData.length; i++) {
+        if (liburData[i][0]) {
+          let tglLibur = Utilities.formatDate(new Date(liburData[i][0]), 'Asia/Jakarta', 'yyyy-MM-dd');
+          if (tglLibur === today) {
+            return { success: false, message: 'Absensi DITUTUP. Hari ini libur: ' + liburData[i][1] };
+          }
+        }
+      }
+    }
+
+    const absensiSheet = ss.getSheetByName('absensi');
+    const siswaSheet = ss.getSheetByName('siswa');
+    
+    const scannedNisn = String(nisn).trim();
+    if (scannedNisn === "" || scannedNisn === "undefined") {
+      return { success: false, message: 'QR Code tidak valid atau kosong.' };
+    }
+
+    const siswaData = siswaSheet.getDataRange().getValues();
+    let siswa = null;
+    
+    for (let i = 1; i < siswaData.length; i++) {
+      if (String(siswaData[i][1]).trim() === scannedNisn) {
+        siswa = {
+          nama: siswaData[i][0],
+          nisn: String(siswaData[i][1]).trim(),
+          kelas: siswaData[i][8]
+        };
+        break;
+      }
+    }
+    
+    if (!siswa) {
+      return { success: false, message: 'NISN ' + scannedNisn + ' tidak terdaftar di database.' };
+    }
+
+    if (scannerRole === 'guru') {
+      const kelasSiswa = String(siswa.kelas).trim().toUpperCase();
+      const kelasGuru = String(scannerKelas).trim().toUpperCase();
+      if (kelasGuru && kelasSiswa !== kelasGuru) {
+        return { 
+          success: false, 
+          message: `Ditolak! Siswa ini kelas ${siswa.kelas}. Anda hanya bisa scan kelas ${scannerKelas}.` 
+        };
+      }
+    }
+
+    const absensiData = absensiSheet.getDataRange().getValues();
+    
+    for (let i = 1; i < absensiData.length; i++) {
+      const rowDateCell = absensiData[i][0];
+      if (!rowDateCell) continue;
+
+      const rowDateStr = Utilities.formatDate(new Date(rowDateCell), 'Asia/Jakarta', 'yyyy-MM-dd');
+      const rowNisn = String(absensiData[i][1]).trim();
+
+      // Absen Pulang
+      if (rowDateStr === today && rowNisn === scannedNisn) {
+        if (absensiData[i][5] && String(absensiData[i][5]).trim() !== '-') { 
+          return { success: false, message: `${siswa.nama} sudah melakukan absen pulang hari ini.` };
+        } else {
+          
+          if (nowTime > config.jam_pulang_akhir) {
+             return { success: false, message: `Gagal! Batas waktu pulang (${config.jam_pulang_akhir}) sudah lewat.` };
+          }
+
+          let jamDatangRaw = absensiData[i][4];
+          let jamDatangStr = (jamDatangRaw instanceof Date) ? 
+              Utilities.formatDate(jamDatangRaw, 'Asia/Jakarta', 'HH:mm') : 
+              String(jamDatangRaw).substring(0, 5);
+          
+          const minutesDiff = calculateTimeDiff(jamDatangStr, nowTime);
+          if (minutesDiff < 5) {
+             return { success: false, message: `Terlalu Cepat! Tunggu 5 menit setelah absen masuk.` };
+          }
+
+          let ketSaatIni = absensiData[i][6] || ''; 
+          let ketBaru = ketSaatIni;
+          let pesanPulang = 'Absen Pulang Berhasil';
+
+          if (nowTime < config.jam_pulang_mulai) {
+             ketBaru = (ketSaatIni && ketSaatIni !== '-' ? ketSaatIni + " & " : "") + "Pulang Cepat"; 
+             pesanPulang = 'Absen Pulang (Pulang Cepat)';
+          }
+
+          const jamPulang = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'HH:mm:ss');
+          
+          absensiSheet.getRange(i + 1, 6).setValue(jamPulang);
+          absensiSheet.getRange(i + 1, 7).setValue(ketBaru || 'Tepat Waktu');
+          
+          return {
+            success: true,
+            message: pesanPulang,
+            type: 'pulang',
+            jamPulang: jamPulang,
+            nama: siswa.nama,
+            kelas: siswa.kelas,
+            status: 'Hadir'
+          };
+        }
+      }
+    }
+
+    // Absen Datang
+    if (nowTime > config.jam_pulang_akhir) {
+         return { success: false, message: `Absensi Ditutup! Sudah melewati jam operasional.` };
+    }
+
+    let keteranganWaktu = 'Tepat Waktu';
+    let statusKehadiran = 'Hadir';
+
+    if (nowTime > config.jam_masuk_akhir) {
+      const lateMinutes = calculateTimeDiff(config.jam_masuk_akhir, nowTime);
+      keteranganWaktu = `Terlambat (${lateMinutes} m)`;
+    }
+
+    const jamDatang = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'HH:mm:ss');
+    
+    absensiSheet.appendRow([
+      new Date(),        
+      "'" + scannedNisn, 
+      siswa.nama,        
+      siswa.kelas,       
+      jamDatang,         
+      '-',
+      keteranganWaktu,
+      statusKehadiran
+    ]);
+
+    let responseMessage = 'Absen Masuk Berhasil';
+    if (keteranganWaktu.includes('Terlambat')) {
+       responseMessage = `Absen Masuk (${keteranganWaktu})`;
+    }
+
+    return {
+      success: true,
+      message: responseMessage,
+      type: 'datang',
+      jamDatang: jamDatang,
+      nama: siswa.nama,
+      kelas: siswa.kelas,
+      status: statusKehadiran
+    };
+
+  } catch (error) {
+    return { success: false, message: "Error Server: " + error.toString() };
+  }
+}
+
+function calculateTimeDiff(startTime, endTime) {
+  try {
+    const [h1, m1] = startTime.split(':').map(Number);
+    const [h2, m2] = endTime.split(':').map(Number);
+    return (h2 * 60 + m2) - (h1 * 60 + m1);
+  } catch (e) {
+    return 0;
+  }
+}
+
+function getAbsensiToday(nisn) {
+  try {
+    const ss = getSpreadsheet();
+    const todayStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd');
+
+    const liburSheet = ss.getSheetByName('hari_libur');
+    let isLibur = false;
+    let keteranganLibur = "";
+
+    if (liburSheet) {
+      const liburData = liburSheet.getDataRange().getValues();
+      for (let i = 1; i < liburData.length; i++) {
+        if (liburData[i][0]) {
+          let tgl = Utilities.formatDate(new Date(liburData[i][0]), 'Asia/Jakarta', 'yyyy-MM-dd');
+          if (tgl === todayStr) {
+            isLibur = true;
+            keteranganLibur = liburData[i][1];
+            break;
+          }
+        }
+      }
+    }
+
+    const sheet = ss.getSheetByName('absensi');
+    if (!sheet) return { success: true, data: null, isLibur: isLibur, keteranganLibur: keteranganLibur };
+
+    const data = sheet.getDataRange().getValues();
+    const searchNisn = String(nisn).trim();
+    let absensiData = null;
+    
+    for (let i = 1; i < data.length; i++) {
+      const rowDateCell = data[i][0];
+      if (!rowDateCell) continue;
+      
+      const rowDateStr = Utilities.formatDate(new Date(rowDateCell), 'Asia/Jakarta', 'yyyy-MM-dd');
+      const rowNisn = String(data[i][1]).trim();
+
+      if (rowDateStr === todayStr && rowNisn === searchNisn) {
+        let jamDatang = data[i][4];
+        if (jamDatang instanceof Date) {
+          jamDatang = Utilities.formatDate(jamDatang, 'Asia/Jakarta', 'HH:mm:ss');
+        }
+        
+        let jamPulang = data[i][5];
+        if (jamPulang instanceof Date) {
+          jamPulang = Utilities.formatDate(jamPulang, 'Asia/Jakarta', 'HH:mm:ss');
+        } else if (!jamPulang) {
+          jamPulang = "-";
+        }
+
+        absensiData = {
+          tanggal: rowDateStr,
+          jamDatang: jamDatang,
+          jamPulang: jamPulang,
+          keterangan: data[i][6] || '-',
+          status: data[i][7] || 'Hadir'
+        };
+        break; 
+      }
+    }
+
+    return { 
+      success: true, 
+      data: absensiData,
+      isLibur: isLibur,
+      keteranganLibur: keteranganLibur
+    };
+
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+// ============================================================================
+// 6. REKAP MONITORING & UPDATE STATUS MANUAL
+// ============================================================================
+
+function getMonitoringRealtime(filterKelas) {
+  try {
+    const ss = getSpreadsheet();
+    const todayStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd');
+    const siswaSheet = ss.getSheetByName('siswa');
+    if (!siswaSheet) return { success: true, data: [] };
+    
+    const dataSiswa = siswaSheet.getDataRange().getValues();
+    const absensiSheet = ss.getSheetByName('absensi');
+    const dataAbsensi = absensiSheet ? absensiSheet.getDataRange().getValues() : [];
+    
+    let absensiMap = {};
+    for (let i = 1; i < dataAbsensi.length; i++) {
+      let rowDate = dataAbsensi[i][0];
+      if (!rowDate) continue;
+
+      let tgl = Utilities.formatDate(new Date(rowDate), 'Asia/Jakarta', 'yyyy-MM-dd');
+      let nisn = String(dataAbsensi[i][1]).trim();
+      
+      if (tgl === todayStr) {
+        absensiMap[nisn] = {
+          jamDatang: dataAbsensi[i][4],
+          jamPulang: dataAbsensi[i][5],
+          keterangan: dataAbsensi[i][6],
+          status: dataAbsensi[i][7]
+        };
+      }
+    }
+
+    let result = [];
+    for (let i = 1; i < dataSiswa.length; i++) {
+      if (!dataSiswa[i][0]) continue;
+
+      let nama = dataSiswa[i][0];
+      let nisn = String(dataSiswa[i][1]).trim();
+      let kelas = dataSiswa[i][8];
+
+      if (filterKelas && kelas !== filterKelas) continue;
+      
+      let statusInfo = absensiMap[nisn];
+      let jamDatang = '-';
+      let jamPulang = '-';
+      let displayStatus = 'Belum Absen'; 
+      let keteranganWaktu = '-';         
+
+      if (statusInfo) {
+        if (statusInfo.jamDatang instanceof Date) {
+            jamDatang = Utilities.formatDate(statusInfo.jamDatang, 'Asia/Jakarta', 'HH:mm');
+        } else if (statusInfo.jamDatang) jamDatang = String(statusInfo.jamDatang);
+
+        if (statusInfo.jamPulang instanceof Date) {
+            jamPulang = Utilities.formatDate(statusInfo.jamPulang, 'Asia/Jakarta', 'HH:mm');
+        } else if (statusInfo.jamPulang) jamPulang = String(statusInfo.jamPulang);
+
+        displayStatus = statusInfo.status ? String(statusInfo.status) : 'Hadir';
+        keteranganWaktu = statusInfo.keterangan ? String(statusInfo.keterangan) : (displayStatus === 'Hadir' ? 'Tepat Waktu' : '-');
+      }
+
+      result.push({
+        nama: nama,
+        nisn: nisn,
+        kelas: kelas,
+        jamDatang: jamDatang,
+        jamPulang: jamPulang,
+        status: displayStatus,
+        keterangan: keteranganWaktu
+      });
+    }
+
+    result.sort((a, b) => {
+      if (a.kelas === b.kelas) return a.nama.localeCompare(b.nama);
+      return a.kelas.localeCompare(b.kelas);
+    });
+    
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+function updateAbsensiStatus(token, nisn, nama, kelas, newStatus) {
+  try {
+    verifyUser(token, 'guru');
+    
+    const ss = getSpreadsheet();
+    let absensiSheet = ss.getSheetByName('absensi');
+    if (!absensiSheet) {
+      absensiSheet = ss.insertSheet('absensi');
+      absensiSheet.appendRow(['Tanggal', 'NISN', 'Nama', 'Kelas', 'Jam Datang', 'Jam Pulang', 'Keterangan Waktu', 'Status']);
+    }
+
+    const todayStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd');
+    const data = absensiSheet.getDataRange().getValues();
+    const searchNisn = String(nisn).trim();
+    
+    let found = false;
+    let rowIndex = -1;
+
+    for (let i = 1; i < data.length; i++) {
+      if (!data[i][0]) continue;
+      let tgl = Utilities.formatDate(new Date(data[i][0]), 'Asia/Jakarta', 'yyyy-MM-dd');
+      let rowNisn = String(data[i][1]).trim();
+      
+      if (tgl === todayStr && rowNisn === searchNisn) {
+        found = true;
+        rowIndex = i + 1;
+        break;
+      }
+    }
+
+    if (found) {
+      absensiSheet.getRange(rowIndex, 8).setValue(newStatus); 
+    } else {
+      let jamDatang = '-';
+      if (newStatus === 'Hadir') {
+        jamDatang = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'HH:mm:ss');
+      }
+      
+      absensiSheet.appendRow([
+        new Date(), 
+        "'" + searchNisn, 
+        nama, 
+        kelas, 
+        jamDatang, 
+        '-',   
+        '-',  
+        newStatus 
+      ]);
+    }
+
+    return { success: true, message: 'Status berhasil diubah' };
+  } catch (error) {
+    return { success: false, message: "Gagal: " + error.message };
+  }
+}
+
+function getAbsensiList(filter = {}) {
+  try {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName('absensi');
+    if (!sheet) return { success: true, data: [] };
+
+    const data = sheet.getDataRange().getValues();
+    const absensiList = [];
+    
+    const fStart = filter.tanggalMulai || "";
+    const fEnd = filter.tanggalAkhir || "";
+    const fKelas = filter.kelas || "";
+
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0]) {
+        let rawDate = new Date(data[i][0]);
+        let tanggalStr = Utilities.formatDate(rawDate, 'Asia/Jakarta', 'yyyy-MM-dd');
+
+        let jamDatangStr = data[i][4];
+        if (data[i][4] instanceof Date) {
+             jamDatangStr = Utilities.formatDate(data[i][4], 'Asia/Jakarta', 'HH:mm:ss');
+        }
+
+        let jamPulangStr = data[i][5];
+        if (data[i][5] && data[i][5] instanceof Date) {
+             jamPulangStr = Utilities.formatDate(data[i][5], 'Asia/Jakarta', 'HH:mm:ss');
+        } else if (!jamPulangStr) {
+             jamPulangStr = "-";
+        }
+        
+        const item = {
+          tanggal: tanggalStr, 
+          nisn: String(data[i][1]).replace(/^'/, ''),
+          nama: data[i][2],
+          kelas: data[i][3],
+          jamDatang: jamDatangStr,
+          jamPulang: jamPulangStr,
+          keterangan: data[i][6] || '-',
+          status: data[i][7] || 'Hadir'
+        };
+
+        let match = true;
+        if (fStart && tanggalStr < fStart) match = false;
+        if (fEnd && tanggalStr > fEnd) match = false;
+        if (filter.nama && !String(item.nama).toLowerCase().includes(filter.nama.toLowerCase())) match = false;
+        if (fKelas && item.kelas != fKelas) match = false;
+
+        if (match) {
+          absensiList.push(item);
+        }
+      }
+    }
+    
+    absensiList.sort((a, b) => b.tanggal.localeCompare(a.tanggal));
+    return { success: true, data: absensiList };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+function getKelasList() {
+  try {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName('siswa');
+    if (!sheet) return { success: true, data: ['X MIPA 1', 'X MIPA 2', 'XI IPS 1'] };
+
+    const data = sheet.getDataRange().getValues();
+    const kelasSet = new Set();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][8]) {
+        kelasSet.add(String(data[i][8]).trim());
+      }
+    }
+    
+    return { success: true, data: Array.from(kelasSet).sort() };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+// ============================================================================
+// 7. MANAJEMEN HARI LIBUR & KONFIGURASI WAKTU
+// ============================================================================
+
+function getHariLibur() {
+  try {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName('hari_libur');
+    if (!sheet) return { success: true, data: [] };
+
+    const data = sheet.getDataRange().getValues();
+    const list = [];
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0]) {
+        let tgl = Utilities.formatDate(new Date(data[i][0]), 'Asia/Jakarta', 'yyyy-MM-dd');
+        list.push({
+          tanggal: tgl,
+          keterangan: data[i][1]
+        });
+      }
+    }
+    list.sort((a, b) => b.tanggal.localeCompare(a.tanggal));
+    return { success: true, data: list };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+function addHariLibur(tanggal, keterangan) {
+  try {
+    const ss = getSpreadsheet();
+    let sheet = ss.getSheetByName('hari_libur');
+    if (!sheet) {
+      sheet = ss.insertSheet('hari_libur');
+      sheet.appendRow(['Tanggal', 'Keterangan']);
+    }
+    
+    sheet.appendRow([tanggal, keterangan]);
+    return { success: true, message: 'Hari libur berhasil ditambahkan' };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+function updateHariLibur(oldDateStr, newDateStr, newKeterangan) {
+  try {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName('hari_libur');
+    const data = sheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+      let rowDate = Utilities.formatDate(new Date(data[i][0]), 'Asia/Jakarta', 'yyyy-MM-dd');
+      if (rowDate === oldDateStr) {
+        sheet.getRange(i + 1, 1, 1, 2).setValues([[new Date(newDateStr), newKeterangan]]);
+        return { success: true, message: 'Hari libur berhasil diperbarui' };
+      }
+    }
+    return { success: false, message: 'Data tanggal tidak ditemukan' };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+function deleteHariLibur(tanggalStr) {
+  try {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName('hari_libur');
+    const data = sheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+      let rowDate = Utilities.formatDate(new Date(data[i][0]), 'Asia/Jakarta', 'yyyy-MM-dd');
+      if (rowDate === tanggalStr) {
+        sheet.deleteRow(i + 1);
+        return { success: true, message: 'Hari libur dihapus' };
+      }
+    }
+    return { success: false, message: 'Data tidak ditemukan' };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+function getAppConfig() {
+  try {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName('konfigurasi');
+    let config = {
+      jam_masuk_mulai: '06:30',
+      jam_masuk_akhir: '07:15',
+      jam_pulang_mulai: '15:00',
+      jam_pulang_akhir: '17:00'
+    };
+    
+    if (sheet) {
+      const data = sheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        const key = data[i][0];
+        const val = data[i][1];
+        if (config.hasOwnProperty(key)) {
+          if (val instanceof Date) {
+            config[key] = Utilities.formatDate(val, 'Asia/Jakarta', 'HH:mm');
+          } else {
+            config[key] = String(val);
+          }
+        }
+      }
+    }
+    return { success: true, data: config };
+  } catch (e) {
+    return { success: false, message: e.toString() };
+  }
+}
+
+function saveAppConfig(newConfig) {
+  try {
+    const ss = getSpreadsheet();
+    let sheet = ss.getSheetByName('konfigurasi');
+    if (!sheet) {
+      sheet = ss.insertSheet('konfigurasi');
+      sheet.appendRow(['Key', 'Value', 'Keterangan']);
+      sheet.appendRow(['jam_masuk_mulai', '06:30', 'Jam Masuk Mulai']);
+      sheet.appendRow(['jam_masuk_akhir', '07:15', 'Jam Masuk Akhir (Terlambat)']);
+      sheet.appendRow(['jam_pulang_mulai', '15:00', 'Jam Pulang Mulai']);
+      sheet.appendRow(['jam_pulang_akhir', '17:00', 'Jam Pulang Akhir']);
+    }
+    
+    const data = sheet.getDataRange().getValues();
+    const updateRow = (key, val) => {
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === key) {
+          sheet.getRange(i + 1, 2).setValue("'" + val); 
+          return;
+        }
+      }
+      sheet.appendRow([key, "'" + val, 'Setting ' + key]);
+    };
+
+    if (newConfig.jam_masuk_mulai) updateRow('jam_masuk_mulai', newConfig.jam_masuk_mulai);
+    if (newConfig.jam_masuk_akhir) updateRow('jam_masuk_akhir', newConfig.jam_masuk_akhir);
+    if (newConfig.jam_pulang_mulai) updateRow('jam_pulang_mulai', newConfig.jam_pulang_mulai);
+    if (newConfig.jam_pulang_akhir) updateRow('jam_pulang_akhir', newConfig.jam_pulang_akhir);
+
+    return { success: true, message: 'Konfigurasi waktu berhasil disimpan' };
+  } catch (e) {
+    return { success: false, message: e.toString() };
+  }
+}
+
+// ============================================================================
+// 8. GENERATE EXCEL & DOWNLOAD
+// ============================================================================
+
+function generateExcel(type, filters) {
+  try {
+    var timestamp = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'dd-MM-yyyy_HHmm');
+    var fileName = (type === 'laporan_absensi') ? "Laporan_Absensi_SMANSA_" + timestamp : "Monitoring_Harian_SMANSA_" + timestamp;
+    var headers = (type === 'laporan_absensi') 
+      ? ["No", "Tanggal", "NISN", "Nama Siswa", "Kelas", "Jam Datang", "Jam Pulang", "Keterangan Waktu", "Status Kehadiran"]
+      : ["No", "Nama Siswa", "NISN", "Kelas", "Jam Datang", "Jam Pulang", "Keterangan Waktu", "Status Terkini"];
+
+    var ss = SpreadsheetApp.create(fileName);
+    var sheet = ss.getActiveSheet();
+    var data = getExportData(type, filters);
+
+    var headerRange = sheet.getRange(1, 1, 1, headers.length);
+    headerRange.setValues([headers]);
+    headerRange.setFontWeight('bold').setFontColor('#FFFFFF').setBackground('#4F46E5').setHorizontalAlignment('center').setVerticalAlignment('middle');
+    sheet.setRowHeight(1, 40); 
+    
+    if (data && data.length > 0) {
+      var numRows = data.length;
+      var numCols = headers.length;
+      var dataRange = sheet.getRange(2, 1, numRows, numCols);
+      dataRange.setValues(data);
+      dataRange.setVerticalAlignment('middle').setHorizontalAlignment('center');
+      sheet.setRowHeights(2, numRows, 28);
+      
+      var namaColIndex = headers.findIndex(h => h.includes("Nama"));
+      if (namaColIndex > -1) {
+          sheet.getRange(2, namaColIndex + 1, numRows, 1).setHorizontalAlignment('left');
+      }
+
+      dataRange.setBorder(true, true, true, true, true, true, '#E2E8F0', SpreadsheetApp.BorderStyle.SOLID);
+    }
+    
+    sheet.autoResizeColumns(1, headers.length);
+    sheet.setFrozenRows(1);
+
+    var fileId = ss.getId();
+    var file = DriveApp.getFileById(fileId);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    
+    var downloadUrl = "https://docs.google.com/spreadsheets/d/" + fileId + "/export?format=xlsx";
+    return { success: true, url: downloadUrl };
+  } catch (e) {
+    return { success: false, message: 'Gagal generate Excel: ' + e.toString() };
+  }
+}
+
+function getExportData(type, filters) {
+  if (type === 'laporan_absensi') {
+    const res = getAbsensiList(filters);
+    if (!res.success) return [];
+    return res.data.map((d, i) => [
+      i + 1,
+      d.tanggal,
+      "'" + d.nisn,
+      d.nama,
+      d.kelas,
+      d.jamDatang,
+      d.jamPulang,
+      d.keterangan,
+      d.status
+    ]);
+  } else {
+    const res = getMonitoringRealtime(filters ? filters.kelas : null);
+    if (!res.success) return [];
+    return res.data.map((d, i) => [
+      i + 1,
+      d.nama,
+      "'" + d.nisn,
+      d.kelas,
+      d.jamDatang,
+      d.jamPulang,
+      d.keterangan,
+      d.status
+    ]);
+  }
+}
+
+// ============================================================================
+// 9. BULK IMPORT SISWA & GURU (DARI EXCEL)
+// ============================================================================
+
+function importSiswaBulk(dataArray) {
+  try {
+    const ss = getSpreadsheet();
+    let sheet = ss.getSheetByName('siswa');
+    if (!sheet) {
+      sheet = ss.insertSheet('siswa');
+      sheet.appendRow(['Nama Lengkap', 'NISN', 'Jenis Kelamin', 'Tanggal Lahir', 'Agama', 'Nama Ayah', 'Nama Ibu', 'No Handphone', 'Kelas', 'Alamat']);
+    }
+
+    const existingData = sheet.getDataRange().getValues();
+    const existingNISN = new Set();
+    for (let i = 1; i < existingData.length; i++) {
+      existingNISN.add(String(existingData[i][1]).trim());
+    }
+
+    const rowsToAdd = [];
+    let addedCount = 0;
+    let skippedCount = 0;
+
+    for (let i = 0; i < dataArray.length; i++) {
+      const item = dataArray[i];
+      const nisn = String(item.nisn).trim();
+
+      if (!item.nama || !nisn || existingNISN.has(nisn)) {
+        skippedCount++;
+        continue;
+      }
+
+      rowsToAdd.push([
+        item.nama,
+        "'" + nisn,
+        item.jenisKelamin || 'Laki-laki',
+        item.tanggalLahir || '2008-01-01',
+        item.agama || 'Islam',
+        item.namaAyah || '-',
+        item.namaIbu || '-',
+        "'" + (item.noHp || '-'),
+        item.kelas || 'X MIPA 1',
+        item.alamat || 'Lhoksukon'
+      ]);
+      
+      existingNISN.add(nisn);
+      addedCount++;
+    }
+
+    if (rowsToAdd.length > 0) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, rowsToAdd.length, rowsToAdd[0].length).setValues(rowsToAdd);
+    }
+
+    return { 
+      success: true, 
+      added: addedCount, 
+      skipped: skippedCount, 
+      message: `Import selesai. Berhasil: ${addedCount}, Duplikat/Gagal: ${skippedCount}` 
+    };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+function importGuruBulk(dataArray) {
+  try {
+    const ss = getSpreadsheet();
+    let sheet = ss.getSheetByName('users');
+    if (!sheet) {
+      sheet = ss.insertSheet('users');
+      sheet.appendRow(['Username', 'Password', 'Role', 'Kelas']);
+    }
+
+    const existingData = sheet.getDataRange().getValues();
+    const existingUsernames = new Set();
+    for (let i = 1; i < existingData.length; i++) {
+      existingUsernames.add(String(existingData[i][0]).trim().toLowerCase());
+    }
+
+    const rowsToAdd = [];
+    let addedCount = 0;
+    let skippedCount = 0;
+
+    for (let i = 0; i < dataArray.length; i++) {
+      const item = dataArray[i];
+      const username = String(item.username).trim();
+
+      if (!username || !item.password || existingUsernames.has(username.toLowerCase())) {
+        skippedCount++;
+        continue;
+      }
+
+      rowsToAdd.push([
+        "'" + username,
+        "'" + item.password,
+        'guru',
+        item.kelas || ''
+      ]);
+
+      existingUsernames.add(username.toLowerCase());
+      addedCount++;
+    }
+
+    if (rowsToAdd.length > 0) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, rowsToAdd.length, rowsToAdd[0].length).setValues(rowsToAdd);
+    }
+
+    return { 
+      success: true, 
+      added: addedCount, 
+      skipped: skippedCount, 
+      message: `Import selesai. Berhasil: ${addedCount}, Duplikat/Gagal: ${skippedCount}` 
+    };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+// ============================================================================
+// 10. SETUP OTOMATIS DATABASE INITIAL (SHEETS & COLUMNS)
+// ============================================================================
+
+function setupInitialData() {
+  try {
+    const ss = getSpreadsheet();
+
+    // 1. Sheet users
+    let usersSheet = ss.getSheetByName('users');
+    if (!usersSheet) {
+      usersSheet = ss.insertSheet('users');
+      usersSheet.appendRow(['Username', 'Password', 'Role', 'Kelas']);
+      usersSheet.appendRow(['admin', 'admin123', 'admin', '']);
+      usersSheet.appendRow(['guru1', 'guru123', 'guru', 'X MIPA 1']);
+      usersSheet.appendRow(['guru2', 'guru123', 'guru', 'XI IPS 1']);
+    }
+
+    // 2. Sheet siswa
+    let siswaSheet = ss.getSheetByName('siswa');
+    if (!siswaSheet) {
+      siswaSheet = ss.insertSheet('siswa');
+      siswaSheet.appendRow(['Nama Lengkap', 'NISN', 'Jenis Kelamin', 'Tanggal Lahir', 'Agama', 'Nama Ayah', 'Nama Ibu', 'No Handphone', 'Kelas', 'Alamat']);
+      siswaSheet.appendRow(['Ahmad Fauzi', '1234567890', 'Laki-laki', '2008-04-12', 'Islam', 'Bambang', 'Siti Aminah', '081234567890', 'X MIPA 1', 'Jl. Medan - Banda Aceh, Lhoksukon']);
+      siswaSheet.appendRow(['Cut Bella Salsabila', '1234567891', 'Perempuan', '2008-08-21', 'Islam', 'Rahmat', 'Nurhaliza', '081234567891', 'X MIPA 1', 'Lhoksukon, Aceh Utara']);
+    }
+
+    // 3. Sheet absensi
+    let absensiSheet = ss.getSheetByName('absensi');
+    if (!absensiSheet) {
+      absensiSheet = ss.insertSheet('absensi');
+      absensiSheet.appendRow(['Tanggal', 'NISN', 'Nama', 'Kelas', 'Jam Datang', 'Jam Pulang', 'Keterangan Waktu', 'Status']);
+    }
+
+    // 4. Sheet hari_libur
+    let liburSheet = ss.getSheetByName('hari_libur');
+    if (!liburSheet) {
+      liburSheet = ss.insertSheet('hari_libur');
+      liburSheet.appendRow(['Tanggal', 'Keterangan']);
+      liburSheet.appendRow(['2026-08-17', 'HUT Kemerdekaan RI']);
+      liburSheet.appendRow(['2026-12-25', 'Hari Raya Natal']);
+    }
+
+    // 5. Sheet konfigurasi
+    let configSheet = ss.getSheetByName('konfigurasi');
+    if (!configSheet) {
+      configSheet = ss.insertSheet('konfigurasi');
+      configSheet.appendRow(['Key', 'Value', 'Keterangan']);
+      configSheet.appendRow(['jam_masuk_mulai', '06:30', 'Waktu absen datang dibuka']);
+      configSheet.appendRow(['jam_masuk_akhir', '07:15', 'Batas waktu terlambat']);
+      configSheet.appendRow(['jam_pulang_mulai', '15:00', 'Waktu absen pulang dibuka']);
+      configSheet.appendRow(['jam_pulang_akhir', '17:00', 'Batas akhir absen pulang']);
+    }
+    
+    return { success: true, message: 'Setup database SMANSA Lhoksukon berhasil!' };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
