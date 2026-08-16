@@ -402,6 +402,60 @@
                       </div>
                   </div>
 
+                  <!-- Profil & Self Presensi Guru -->
+                  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                      <!-- Card Profil Guru -->
+                      <div class="bg-gradient-to-br from-indigo-700 via-purple-800 to-slate-900 text-white rounded-3xl p-6 shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[240px]">
+                          <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+                          <div>
+                              <div class="flex items-center justify-between mb-4">
+                                  <span class="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[11px] font-bold tracking-wider uppercase">Guru / Tenaga Pendidik</span>
+                                  <i class="fas fa-chalkboard-teacher text-2xl text-purple-200"></i>
+                              </div>
+                              <h3 id="guruProfileNama" class="text-xl font-extrabold mb-1">...</h3>
+                              <p id="guruProfileJabatan" class="text-xs text-purple-200 font-medium mb-3">...</p>
+                              <div class="space-y-1 text-xs text-purple-100">
+                                  <p><span class="opacity-75">NIP:</span> <strong id="guruProfileNip" class="text-white">...</strong></p>
+                                  <p><span class="opacity-75">No. HP:</span> <strong id="guruProfileNoHp" class="text-white">...</strong></p>
+                              </div>
+                          </div>
+                          <div class="pt-4 border-t border-white/20 flex gap-2">
+                              <button onclick="doSelfPresensiGuru()" class="flex-1 bg-white text-purple-900 hover:bg-purple-50 font-bold py-2.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-md">
+                                  <i class="fas fa-fingerprint text-base text-purple-700"></i> Presensi Mandiri
+                              </button>
+                              <button onclick="showUserProfileAndSecurityModal()" class="bg-white/20 hover:bg-white/30 text-white font-bold p-2.5 rounded-xl text-xs transition" title="Profil & Ganti Password">
+                                  <i class="fas fa-user-cog text-base"></i>
+                              </button>
+                          </div>
+                      </div>
+
+                      <!-- Widget Status Absensi Guru Hari Ini -->
+                      <div class="lg:col-span-2 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
+                          <div>
+                              <h4 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                  <i class="fas fa-clock text-indigo-600"></i> Status Presensi Guru Hari Ini
+                              </h4>
+                              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                                  <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                      <p class="text-slate-400 font-medium mb-1">Absen Masuk (Datang)</p>
+                                      <h4 id="guruJamDatang" class="text-lg font-bold text-slate-800">-</h4>
+                                  </div>
+                                  <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                      <p class="text-slate-400 font-medium mb-1">Absen Pulang</p>
+                                      <h4 id="guruJamPulang" class="text-lg font-bold text-slate-800">-</h4>
+                                  </div>
+                              </div>
+                          </div>
+                          <div class="mt-4 p-4 bg-indigo-50 border border-indigo-100 rounded-2xl text-xs text-indigo-900 flex items-center gap-3">
+                              <i class="fas fa-info-circle text-indigo-600 text-lg"></i>
+                              <div>
+                                  <p class="font-bold">Informasi Presensi Guru:</p>
+                                  <p class="text-[11px] text-indigo-700">Gunakan tombol Presensi Mandiri di atas untuk mencatat kehadiran Anda atau scan kartu QR NIP ke scanner.</p>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
                   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                       
                       <div class="relative overflow-hidden bg-white p-6 rounded-2xl shadow-sm border border-indigo-100 group hover:shadow-md transition-all">
@@ -2460,13 +2514,36 @@
         showView('view-guru-dashboard');
         
         document.getElementById('guruDashboardDate').textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        
+        if (currentUser) {
+            const elNama = document.getElementById('guruProfileNama');
+            const elJabatan = document.getElementById('guruProfileJabatan');
+            const elNip = document.getElementById('guruProfileNip');
+            const elHp = document.getElementById('guruProfileNoHp');
+            
+            if (elNama) elNama.textContent = currentUser.nama || currentUser.username;
+            if (elJabatan) elJabatan.textContent = currentUser.jabatan || (currentUser.kelas ? 'Wali Kelas ' + currentUser.kelas : 'Guru SMANSA');
+            if (elNip) elNip.textContent = currentUser.nip || '-';
+            if (elHp) elHp.textContent = currentUser.noHp || '-';
+
+            google.script.run.withSuccessHandler(res => {
+                if (res.success && res.data) {
+                    const elMasuk = document.getElementById('guruJamDatang');
+                    const elPulang = document.getElementById('guruJamPulang');
+                    if (elMasuk) elMasuk.textContent = res.data.jamDatang || '-';
+                    if (elPulang) elPulang.textContent = res.data.jamPulang || '-';
+                }
+            }).getAbsensiToday(currentUser.nip || currentUser.username);
+        }
+
         const myClass = currentUser.role === 'guru' ? currentUser.kelas : null;
 
         google.script.run.withSuccessHandler(result => {
             if (result.success) {
                 const data = result.data; 
                 if(myClass) {
-                     document.querySelector('#view-guru-dashboard h2').textContent = `Dashboard Guru (${myClass})`;
+                     const h2 = document.querySelector('#view-guru-dashboard h2');
+                     if (h2) h2.textContent = `Dashboard Guru (${myClass})`;
                 }
                 
                 const totalSiswa = data.length;
@@ -2483,6 +2560,28 @@
                 renderGuruChart(hadir, sakit, izin, alpa, belumAbsen);
             }
         }).getMonitoringRealtime(myClass);
+    }
+
+    function doSelfPresensiGuru() {
+        if (!currentUser) return;
+        const targetId = currentUser.nip || currentUser.username;
+
+        showLoading();
+        google.script.run
+            .withSuccessHandler(res => {
+                hideLoading();
+                if (res.success) {
+                    showAlert('success', res.message);
+                    loadGuruDashboard();
+                } else {
+                    showAlert('error', res.message);
+                }
+            })
+            .withFailureHandler(err => {
+                hideLoading();
+                showAlert('error', 'Gagal presensi: ' + err);
+            })
+            .scanAbsensi(targetId, currentUser.role, currentUser.kelas);
     }
 
     function renderGuruChart(hadir, sakit, izin, alpa, belumAbsen) {
