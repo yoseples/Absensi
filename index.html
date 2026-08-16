@@ -1507,51 +1507,41 @@
 
     const google = {
       script: {
-        run: {
-          withSuccessHandler: function(successFn) {
-            this._success = successFn;
-            return this;
-          },
-          withFailureHandler: function(failFn) {
-            this._fail = failFn;
-            return this;
-          },
-          _call: async function(fnName, ...args) {
-            try {
-              if (typeof BackendAPI[fnName] === 'function') {
-                const res = await BackendAPI[fnName](...args);
-                if (this._success) this._success(res);
-              } else {
-                throw new Error('Metode ' + fnName + ' tidak ditemukan di API');
-              }
-            } catch (err) {
-              if (this._fail) this._fail(err);
-              else console.error(err);
+        run: new Proxy({}, {
+          get(target, prop) {
+            let successHandler = null;
+            let failureHandler = null;
+
+            function createRunner() {
+              return new Proxy({}, {
+                get(t, method) {
+                  if (method === 'withSuccessHandler') {
+                    return function(fn) { successHandler = fn; return createRunner(); };
+                  }
+                  if (method === 'withFailureHandler') {
+                    return function(fn) { failureHandler = fn; return createRunner(); };
+                  }
+                  return function(...args) {
+                    (async () => {
+                      try {
+                        if (typeof BackendAPI[method] === 'function') {
+                          const res = await BackendAPI[method](...args);
+                          if (typeof successHandler === 'function') successHandler(res);
+                        } else {
+                          throw new Error('Metode BackendAPI.' + method + ' tidak ditemukan');
+                        }
+                      } catch (err) {
+                        if (typeof failureHandler === 'function') failureHandler(err);
+                        else console.error('GAS Runner Error:', err);
+                      }
+                    })();
+                  };
+                }
+              });
             }
-          },
-          login: function(u, p, n) { this._call('login', u, p, n); },
-          getKelasList: function() { this._call('getKelasList'); },
-          getSiswaList: function() { this._call('getSiswaList'); },
-          addSiswa: function(t, d) { this._call('addSiswa', t, d); },
-          updateSiswa: function(t, o, d) { this._call('updateSiswa', t, o, d); },
-          deleteSiswa: function(t, n) { this._call('deleteSiswa', t, n); },
-          getGuruList: function(t) { this._call('getGuruList', t); },
-          addGuru: function(t, u, p, k) { this._call('addGuru', t, u, p, k); },
-          updateGuru: function(t, o, u, p, k) { this._call('updateGuru', t, o, u, p, k); },
-          deleteGuru: function(t, u) { this._call('deleteGuru', t, u); },
-          getAppConfig: function() { this._call('getAppConfig'); },
-          saveAppConfig: function(c) { this._call('saveAppConfig', c); },
-          getHariLibur: function() { this._call('getHariLibur'); },
-          addHariLibur: function(t, k) { this._call('addHariLibur', t, k); },
-          updateHariLibur: function(o, n, k) { this._call('updateHariLibur', o, n, k); },
-          deleteHariLibur: function(t) { this._call('deleteHariLibur', t); },
-          getMonitoringRealtime: function(k) { this._call('getMonitoringRealtime', k); },
-          getAbsensiToday: function(n) { this._call('getAbsensiToday', n); },
-          scanAbsensi: function(n, r, k) { this._call('scanAbsensi', n, r, k); },
-          updateAbsensiStatus: function(t, n, nm, k, s) { this._call('updateAbsensiStatus', t, n, nm, k, s); },
-          getAbsensiList: function(f) { this._call('getAbsensiList', f); },
-          generateExcel: function(t, f) { this._call('generateExcel', t, f); }
-        }
+            return createRunner()[prop];
+          }
+        })
       }
     };
 
@@ -1578,12 +1568,13 @@
     };
 
     function quickFillNISN(val) {
-      document.getElementById('nisn').value = val;
+      if (document.getElementById('loginUsername')) document.getElementById('loginUsername').value = val;
+      if (document.getElementById('loginPassword')) document.getElementById('loginPassword').value = '12345';
     }
 
     function quickFillAdmin(u, p) {
-      document.getElementById('username').value = u;
-      document.getElementById('password').value = p;
+      if (document.getElementById('loginUsername')) document.getElementById('loginUsername').value = u;
+      if (document.getElementById('loginPassword')) document.getElementById('loginPassword').value = p;
     }
 
     function handleTableSearch(type, query) {
