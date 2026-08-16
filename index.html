@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Presensi - Sistem Absensi SMA Negeri 1 Lhoksukon</title>
   
+  <!-- Favicon SMANSA Lhoksukon -->
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
+
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
@@ -77,15 +81,15 @@
         
         <!-- Logo Sekolah SMANSA Lhoksukon -->
         <div class="flex flex-col items-center text-center">
-            <div class="w-20 h-20 bg-white rounded-full p-1.5 shadow-md border border-slate-100 flex items-center justify-center mb-3">
-                <img src="https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=160&auto=format&fit=crop&q=80" 
-                     onerror="this.src='https://cdn-icons-png.flaticon.com/512/2997/2997295.png'" 
+            <div class="w-24 h-24 bg-white rounded-full p-1.5 shadow-md border border-slate-100 flex items-center justify-center mb-3">
+                <img src="logo.png" 
+                     onerror="this.src='favicon.png'" 
                      alt="Logo SMANSA Lhoksukon" 
-                     class="w-full h-full object-contain rounded-full">
+                     class="w-full h-full object-contain">
             </div>
             
             <h1 class="text-2xl font-bold text-slate-800 tracking-tight">E-Presensi GPS</h1>
-            <p class="text-xs text-slate-500 mt-0.5">SMANSA LHOKSUKON</p>
+            <p class="text-xs text-slate-500 mt-0.5 font-medium">SMANSA LHOKSUKON</p>
         </div>
 
         <!-- Info Badges / Instruction Pills (Sesuai Desain Gambar) -->
@@ -172,14 +176,14 @@
       <!-- Sidebar -->
       <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 text-white transform -translate-x-full md:translate-x-0 transition-all duration-300 ease-in-out flex flex-col h-full shadow-2xl border-r border-indigo-900/30" style="background-color: #0F172A;">
           
-          <div id="sidebarHeader" class="h-16 flex items-center justify-start px-6 border-b border-slate-800 overflow-hidden relative transition-all duration-300">
+          <div id="sidebarHeader" class="h-16 flex items-center justify-start px-5 border-b border-slate-800 overflow-hidden relative transition-all duration-300">
               <div class="flex items-center space-x-3 relative z-10 w-full">
-                  <div class="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-900/50 shrink-0 transition-all duration-300">
-                      <i class="fas fa-qrcode text-base"></i>
+                  <div class="w-10 h-10 rounded-full bg-white p-1 shadow-md flex items-center justify-center shrink-0">
+                      <img src="logo.png" onerror="this.src='favicon.png'" alt="Logo SMANSA" class="w-full h-full object-contain">
                   </div>
-                  <div class="sidebar-label transition-opacity duration-300 whitespace-nowrap">
-                      <h1 class="font-bold text-sm tracking-wide text-white">SMANSA LHOKSUKON</h1>
-                      <p class="text-[9px] text-indigo-300 uppercase tracking-wider font-semibold">SMA Negeri 1 Lhoksukon</p>
+                  <div class="sidebar-label transition-opacity duration-300 whitespace-nowrap overflow-hidden">
+                      <h1 class="font-bold text-sm tracking-wide text-white truncate">SMANSA LHOKSUKON</h1>
+                      <p class="text-[9px] text-indigo-300 uppercase tracking-wider font-semibold truncate">SMA Negeri 1 Lhoksukon</p>
                   </div>
               </div>
           </div>
@@ -2943,10 +2947,13 @@
         container.innerHTML = `
             <div class="flex justify-center items-center h-full py-10 animate-slide-up">
                 <div class="bg-white rounded-3xl shadow-2xl overflow-hidden w-full max-w-sm relative transform hover:scale-[1.02] transition duration-300 border border-slate-100">
-                    <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 text-white text-center relative overflow-hidden">
+                    <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 text-white text-center relative overflow-hidden flex flex-col items-center">
                         <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-10 -mt-10 blur-xl"></div>
-                        <h2 class="text-xl font-bold tracking-tight">KARTU PELAJAR DIGITAL</h2>
-                        <p class="text-[10px] tracking-[0.2em] uppercase opacity-80 mt-1 font-semibold">SMA NEGERI 1 LHOKSUKON</p>
+                        <div class="w-14 h-14 bg-white rounded-full p-1 shadow-md mb-2 flex items-center justify-center">
+                            <img src="logo.png" onerror="this.src='favicon.png'" alt="Logo SMANSA Lhoksukon" class="w-full h-full object-contain">
+                        </div>
+                        <h2 class="text-lg font-bold tracking-tight">KARTU PELAJAR DIGITAL</h2>
+                        <p class="text-[10px] tracking-[0.2em] uppercase opacity-90 font-semibold">SMA NEGERI 1 LHOKSUKON</p>
                     </div>
             
                     <div class="p-8 text-center bg-gray-50/50">
