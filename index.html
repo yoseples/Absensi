@@ -1095,9 +1095,9 @@
         { nisn: '1234567894', nama: 'Teuku Eko Prasetyo', kelas: 'XI IPS 1', jenisKelamin: 'Laki-laki', tanggalLahir: '2007-06-25', agama: 'Islam', namaAyah: 'Santoso', namaIbu: 'Dewi', noHp: '081234567894', alamat: 'Lhoksukon, Aceh Utara' }
       ],
       guru: [
-        { username: 'admin', password: 'admin123', role: 'admin', kelas: '' },
-        { username: 'guru1', password: 'guru123', role: 'guru', kelas: 'X MIPA 1' },
-        { username: 'guru2', password: 'guru123', role: 'guru', kelas: 'XI IPS 1' }
+        { username: 'admin', password: 'admin123', role: 'admin', nama: 'Administrator SMANSA', nip: '198001012005011001', jabatan: 'Kepala Tata Usaha', kelas: '', noHp: '081234567800' },
+        { username: 'guru1', password: 'guru123', role: 'guru', nama: 'Drs. Usman, M.Pd', nip: '197503122002121002', jabatan: 'Wali Kelas X MIPA 1', kelas: 'X MIPA 1', noHp: '081234567801' },
+        { username: 'guru2', password: 'guru123', role: 'guru', nama: 'Cut Rahmah, S.Pd', nip: '198207182008042003', jabatan: 'Wali Kelas XI IPS 1', kelas: 'XI IPS 1', noHp: '081234567802' }
       ],
       config: {
         jam_masuk_mulai: '06:30',
@@ -1142,14 +1142,13 @@
         const inputPass = String(password || '').trim();
 
         if (!inputUser) {
-          return { success: false, message: 'Masukkan NISN atau Username Anda.' };
+          return { success: false, message: 'Masukkan NISN, NIP, atau Username Anda.' };
         }
 
         // 1. Cek Apakah Siswa (berdasarkan NISN)
         const siswaList = JSON.parse(localStorage.getItem(DB_KEYS.SISWA) || '[]');
         const siswa = siswaList.find(x => String(x.nisn).trim() === inputUser);
         if (siswa) {
-          // Password siswa bisa '12345' (default) atau jika kosong tetap diizinkan
           return {
             success: true,
             role: 'siswa',
@@ -1160,16 +1159,19 @@
           };
         }
 
-        // 2. Cek Apakah Guru / Admin
+        // 2. Cek Apakah Guru / Admin (berdasarkan Username atau NIP)
         const guruList = JSON.parse(localStorage.getItem(DB_KEYS.GURU) || '[]');
-        const guru = guruList.find(x => x.username.toLowerCase() === inputUser.toLowerCase());
+        const guru = guruList.find(x => x.username.toLowerCase() === inputUser.toLowerCase() || String(x.nip || '').trim() === inputUser);
         if (guru) {
           if (guru.password === inputPass || inputPass === '12345' || inputPass === 'admin123' || inputPass === 'guru123') {
             return {
               success: true,
               role: guru.role,
               username: guru.username,
-              nama: guru.username,
+              nama: guru.nama || guru.username,
+              nip: guru.nip || '-',
+              jabatan: guru.jabatan || (guru.kelas ? 'Wali Kelas ' + guru.kelas : 'Guru Mata Pelajaran'),
+              noHp: guru.noHp || '-',
               kelas: guru.kelas || '',
               token: 'tok_' + guru.username
             };
@@ -1361,19 +1363,73 @@
         const nisn = String(rawNisn).trim();
         const today = getTodayString();
         const nowTime = getNowTimeString();
+        const config = JSON.parse(localStorage.getItem(DB_KEYS.CONFIG) || '{}');
+        let absensiList = JSON.parse(localStorage.getItem(DB_KEYS.ABSENSI) || '[]');
 
+        // 1. CEK ABSENSI GURU (jika QR / ID cocok dengan NIP / Username Guru)
+        const guruList = JSON.parse(localStorage.getItem(DB_KEYS.GURU) || '[]');
+        const guru = guruList.find(g => String(g.nip || '').trim() === nisn || g.username.toLowerCase() === nisn.toLowerCase());
+        if (guru) {
+          const targetId = guru.nip || guru.username;
+          const existingIdx = absensiList.findIndex(a => a.tanggal === today && String(a.nisn) === targetId);
+          if (existingIdx !== -1) {
+            const rec = absensiList[existingIdx];
+            if (rec.jamPulang && rec.jamPulang !== '-') {
+              return { success: false, message: `Guru ${guru.nama || guru.username} sudah melakukan absen datang & pulang hari ini.` };
+            }
+            let ket = rec.keterangan || '';
+            if (nowTime < (config.jam_pulang_mulai || '15:00')) {
+              ket += (ket && ket !== '-' ? ', ' : '') + 'Pulang Cepat';
+            }
+            rec.jamPulang = nowTime;
+            rec.keterangan = ket || 'Tepat Waktu';
+            localStorage.setItem(DB_KEYS.ABSENSI, JSON.stringify(absensiList));
+
+            return {
+              success: true,
+              type: 'pulang',
+              nama: guru.nama || guru.username,
+              kelas: guru.jabatan || (guru.kelas ? 'Wali Kelas ' + guru.kelas : 'Guru SMANSA'),
+              jamPulang: nowTime,
+              message: 'Absen Pulang Guru Berhasil'
+            };
+          }
+
+          let ket = 'Tepat Waktu';
+          if (nowTime > (config.jam_masuk_akhir || '07:15')) ket = 'Terlambat';
+          absensiList.push({
+            tanggal: today,
+            nisn: targetId,
+            nama: guru.nama || guru.username,
+            kelas: guru.jabatan || (guru.kelas ? 'Wali Kelas ' + guru.kelas : 'Guru SMANSA'),
+            jamDatang: nowTime,
+            jamPulang: '-',
+            keterangan: ket,
+            status: 'Hadir',
+            tipeUser: 'Guru'
+          });
+          localStorage.setItem(DB_KEYS.ABSENSI, JSON.stringify(absensiList));
+
+          return {
+            success: true,
+            type: 'datang',
+            nama: guru.nama || guru.username,
+            kelas: guru.jabatan || (guru.kelas ? 'Wali Kelas ' + guru.kelas : 'Guru SMANSA'),
+            jamDatang: nowTime,
+            message: 'Absen Masuk Guru Berhasil'
+          };
+        }
+
+        // 2. CEK ABSENSI SISWA
         const siswaList = JSON.parse(localStorage.getItem(DB_KEYS.SISWA) || '[]');
         const siswa = siswaList.find(s => String(s.nisn) === nisn);
         if (!siswa) {
-          return { success: false, message: 'QR Code NISN ' + nisn + ' tidak terdaftar dalam database siswa!' };
+          return { success: false, message: 'QR Code / ID "' + nisn + '" tidak terdaftar di database Siswa atau Guru!' };
         }
 
         if (role === 'guru' && roleKelas && siswa.kelas !== roleKelas) {
           return { success: false, message: `Siswa ${siswa.nama} terdaftar di kelas ${siswa.kelas}, bukan kelas ${roleKelas}` };
         }
-
-        const config = JSON.parse(localStorage.getItem(DB_KEYS.CONFIG) || '{}');
-        let absensiList = JSON.parse(localStorage.getItem(DB_KEYS.ABSENSI) || '[]');
 
         const existingIdx = absensiList.findIndex(a => a.tanggal === today && String(a.nisn) === nisn);
 
@@ -1383,7 +1439,7 @@
             return { success: false, message: `${siswa.nama} sudah menyelesaikan absensi datang (${rec.jamDatang}) & pulang (${rec.jamPulang}) hari ini.` };
           }
           let ket = rec.keterangan || '';
-          if (nowTime < config.jam_pulang_mulai) {
+          if (nowTime < (config.jam_pulang_mulai || '15:00')) {
             ket += (ket && ket !== '-' ? ', ' : '') + 'Pulang Cepat';
           }
           rec.jamPulang = nowTime;
@@ -1401,7 +1457,7 @@
         }
 
         let ket = 'Tepat Waktu';
-        if (nowTime > config.jam_masuk_akhir) {
+        if (nowTime > (config.jam_masuk_akhir || '07:15')) {
           ket = 'Terlambat';
         }
 
@@ -1413,7 +1469,8 @@
           jamDatang: nowTime,
           jamPulang: '-',
           keterangan: ket,
-          status: 'Hadir'
+          status: 'Hadir',
+          tipeUser: 'Siswa'
         });
         localStorage.setItem(DB_KEYS.ABSENSI, JSON.stringify(absensiList));
 
