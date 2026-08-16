@@ -1272,40 +1272,6 @@
   <!-- 3. JAVASCRIPT & STANDALONE DB ENGINE -->
   <!-- ========================================== -->
   <script>
-    /**
-     * UNIVERSAL PROXY POLYFILL UNTUK GOOGLE.SCRIPT.RUN & CPANEL API.PHP
-     */
-    (function() {
-      function makeRunner(onSuccess, onFailure) {
-        return new Proxy({}, {
-          get: function(target, prop) {
-            if (prop === 'withSuccessHandler') {
-              return function(fn) { return makeRunner(fn, onFailure); };
-            }
-            if (prop === 'withFailureHandler') {
-              return function(fn) { return makeRunner(onSuccess, fn); };
-            }
-            return function(...args) {
-              const method = prop;
-              if (window.BackendAPI && typeof window.BackendAPI[method] === 'function') {
-                Promise.resolve(window.BackendAPI[method](...args))
-                  .then(res => { if (typeof onSuccess === 'function') onSuccess(res); })
-                  .catch(err => { if (typeof onFailure === 'function') onFailure(err); else console.error(err); });
-              } else {
-                console.warn('BackendAPI Method not found:', method);
-              }
-            };
-          }
-        });
-      }
-
-      if (typeof window.google === 'undefined' || typeof window.google.script === 'undefined' || typeof window.google.script.run === 'undefined') {
-        window.google = window.google || {};
-        window.google.script = window.google.script || {};
-        window.google.script.run = makeRunner();
-      }
-    })();
-
     const DEFAULT_GAS_API_URL = '';
 
     const DB_KEYS = {
@@ -1640,20 +1606,12 @@
       },
 
       changePassword: async (token, username, oldPassword, newPassword) => {
-        return this.changeCredentials(token, username, username, oldPassword, newPassword);
+        return BackendAPI.changeCredentials(token, username, username, oldPassword, newPassword);
       },
 
       changeCredentials: async (token, oldUsername, newUsername, oldPassword, newPassword) => {
         const oldU = String(oldUsername || '').trim().toLowerCase();
         const newU = String(newUsername || '').trim();
-
-        const userList = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
-        const user = userList.find(u => u.username.toLowerCase() === oldU || (u.nip && String(u.nip) === oldU));
-        if (user) {
-          user.username = newU;
-          if (newPassword) user.password = newPassword;
-          localStorage.setItem(DB_KEYS.USERS, JSON.stringify(userList));
-        }
 
         const guruList = JSON.parse(localStorage.getItem(DB_KEYS.GURU) || '[]');
         const guru = guruList.find(g => (g.username && g.username.toLowerCase() === oldU) || (g.nip && String(g.nip) === oldU));
@@ -2010,6 +1968,76 @@
         XLSX.writeFile(wb, filename);
 
         return { success: true, url: '#' };
+      },
+
+      importSiswaBulk: async (token, rows) => {
+        const list = JSON.parse(localStorage.getItem(DB_KEYS.SISWA) || '[]');
+        let added = 0;
+        rows.forEach(row => {
+          const cleanNisn = String(row.nisn || '').replace(/^'/, '');
+          if (cleanNisn && !list.some(x => String(x.nisn) === cleanNisn)) {
+            list.push({
+              nisn: cleanNisn,
+              nama: row.nama || '',
+              kelas: row.kelas || '',
+              jenisKelamin: row.jenisKelamin || '-',
+              tanggalLahir: row.tanggalLahir || '-',
+              agama: row.agama || 'Islam',
+              namaAyah: row.namaAyah || '-',
+              namaIbu: row.namaIbu || '-',
+              noHp: String(row.noHp || '-').replace(/^'/, ''),
+              alamat: row.alamat || '-'
+            });
+            added++;
+          }
+        });
+        localStorage.setItem(DB_KEYS.SISWA, JSON.stringify(list));
+        return { success: true, message: `${added} siswa berhasil diimpor`, added: added };
+      },
+
+      importGuruBulk: async (token, rows) => {
+        const list = JSON.parse(localStorage.getItem(DB_KEYS.GURU) || '[]');
+        let added = 0;
+        rows.forEach(row => {
+          const cleanNip = String(row.nip || row.username || '').replace(/^'/, '');
+          if (cleanNip && !list.some(x => x.username === cleanNip || String(x.nip) === cleanNip)) {
+            list.push({
+              username: row.username || cleanNip,
+              password: row.password || 'guru123',
+              role: 'guru',
+              nama: row.nama || '',
+              nip: cleanNip,
+              jabatan: row.jabatan || 'Guru Mata Pelajaran',
+              kelas: row.kelas || '',
+              noHp: String(row.noHp || '-').replace(/^'/, '')
+            });
+            added++;
+          }
+        });
+        localStorage.setItem(DB_KEYS.GURU, JSON.stringify(list));
+        return { success: true, message: `${added} guru berhasil diimpor`, added: added };
+      },
+
+      importTendikBulk: async (token, rows) => {
+        const list = JSON.parse(localStorage.getItem(DB_KEYS.TENDIK) || '[]');
+        let added = 0;
+        rows.forEach(row => {
+          const cleanNip = String(row.nip || row.username || '').replace(/^'/, '');
+          if (cleanNip && !list.some(x => x.username === cleanNip || String(x.nip) === cleanNip)) {
+            list.push({
+              username: row.username || cleanNip,
+              password: row.password || 'tendik123',
+              role: 'tendik',
+              nama: row.nama || '',
+              nip: cleanNip,
+              jabatan: row.jabatan || 'Staf Kependidikan',
+              noHp: String(row.noHp || '-').replace(/^'/, '')
+            });
+            added++;
+          }
+        });
+        localStorage.setItem(DB_KEYS.TENDIK, JSON.stringify(list));
+        return { success: true, message: `${added} tendik berhasil diimpor`, added: added };
       }
     };
 
@@ -3066,7 +3094,10 @@
             tbody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-gray-400">Data siswa tidak ditemukan.</td></tr>';
             return;
         }
-        tbody.innerHTML = data.map((siswa, i) => `
+        const esc = (s) => String(s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        tbody.innerHTML = data.map((siswa, i) => {
+            const safeJson = JSON.stringify(siswa).replace(/'/g, '&#39;');
+            return `
         <tr class="hover:bg-gray-50 transition border-b border-gray-100 group">
             <td class="p-4 text-center text-gray-500 text-sm">${startIdx + i + 1}</td>
             <td class="p-4">
@@ -3084,15 +3115,16 @@
             <td class="p-4 hidden sm:table-cell"><span class="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-100">${siswa.kelas}</span></td>
             <td class="p-4 text-center">
                 <div class="flex justify-center space-x-1.5 opacity-80 group-hover:opacity-100">
-                    <button onclick='viewSiswa(${JSON.stringify(siswa)})' class="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition" title="Lihat Detail">
+                    <button onclick='viewSiswa(${safeJson})' class="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition" title="Lihat Detail">
                         <i class="fas fa-eye"></i>
                     </button>
-                    <button onclick='editSiswa(${JSON.stringify(siswa)})' class="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition" title="Edit"><i class="fas fa-edit"></i></button>
-                    <button onclick="deleteSiswaConfirm('${siswa.nisn}', '${siswa.nama}')" class="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition" title="Hapus"><i class="fas fa-trash"></i></button>
-                    <button onclick="generateQRForSiswa('${siswa.nisn}', '${siswa.nama}', '${siswa.kelas}')" class="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition" title="QR Code"><i class="fas fa-qrcode"></i></button>
+                    <button onclick='editSiswa(${safeJson})' class="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition" title="Edit"><i class="fas fa-edit"></i></button>
+                    <button onclick="deleteSiswaConfirm('${esc(siswa.nisn)}', '${esc(siswa.nama)}')" class="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition" title="Hapus"><i class="fas fa-trash"></i></button>
+                    <button onclick="generateQRForSiswa('${esc(siswa.nisn)}', '${esc(siswa.nama)}', '${esc(siswa.kelas)}')" class="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition" title="QR Code"><i class="fas fa-qrcode"></i></button>
                 </div>
             </td>
-        </tr>`).join('');
+        </tr>`;
+        }).join('');
     }
 
     function loadDataGuru() {
@@ -3139,7 +3171,10 @@
             tbody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-gray-400">Data guru tidak ditemukan.</td></tr>';
             return;
         }
-        tbody.innerHTML = data.map((guru, i) => `
+        const escG = (s) => String(s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        tbody.innerHTML = data.map((guru, i) => {
+            const safeJson = JSON.stringify(guru).replace(/'/g, '&#39;');
+            return `
         <tr class="hover:bg-gray-50 transition border-b border-gray-100 group">
             <td class="p-4 text-center text-gray-500 text-sm">${startIdx + i + 1}</td>
             <td class="p-4 text-sm font-bold text-gray-800">${guru.username}</td>
@@ -3149,11 +3184,12 @@
             <td class="p-4 text-sm text-gray-400 font-mono">••••••••</td>
             <td class="p-4 text-center">
                 <div class="flex justify-center space-x-2 opacity-80 group-hover:opacity-100">
-                    <button onclick='editGuru(${JSON.stringify(guru)})' class="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition" title="Edit Akun"><i class="fas fa-edit"></i></button>
-                    <button onclick="deleteGuruConfirm('${guru.username}')" class="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition" title="Hapus Akun"><i class="fas fa-trash"></i></button>
+                    <button onclick='editGuru(${safeJson})' class="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition" title="Edit Akun"><i class="fas fa-edit"></i></button>
+                    <button onclick="deleteGuruConfirm('${escG(guru.username)}')" class="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition" title="Hapus Akun"><i class="fas fa-trash"></i></button>
                 </div>
             </td>
-        </tr>`).join('');
+        </tr>`;
+        }).join('');
     }
 
     function saveSiswa(e, isEdit) {
@@ -4479,6 +4515,7 @@
         if (pageData.length === 0) {
             tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400">Tidak ada data tendik/staf ditemukan</td></tr>`;
         } else {
+            const escT = (s) => String(s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
             tbody.innerHTML = pageData.map((item, idx) => `
                 <tr class="hover:bg-amber-50/50 transition">
                     <td class="p-3 text-center font-bold text-slate-500">${start + idx + 1}</td>
@@ -4488,9 +4525,9 @@
                     <td class="p-3 text-slate-600">${item.noHp || '-'}</td>
                     <td class="p-3 text-slate-500 font-mono">${item.username}</td>
                     <td class="p-3 text-center space-x-1">
-                        <button onclick="loadQRCodeSiswa('${item.nip || item.username}', '${item.nama || item.username}', '${item.jabatan || 'Tendik'}')" class="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition" title="Cetak Kartu QR"><i class="fas fa-qrcode"></i></button>
-                        <button onclick="showEditTendikModal('${item.username}')" class="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition" title="Edit"><i class="fas fa-edit"></i></button>
-                        <button onclick="deleteTendikPrompt('${item.username}')" class="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition" title="Hapus"><i class="fas fa-trash"></i></button>
+                        <button onclick="loadQRCodeSiswa('${escT(item.nip || item.username)}', '${escT(item.nama || item.username)}', '${escT(item.jabatan || 'Tendik')}')" class="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition" title="Cetak Kartu QR"><i class="fas fa-qrcode"></i></button>
+                        <button onclick="showEditTendikModal('${escT(item.username)}')" class="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition" title="Edit"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteTendikPrompt('${escT(item.username)}')" class="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition" title="Hapus"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>
             `).join('');
