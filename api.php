@@ -276,6 +276,131 @@ try {
             echo json_encode(['success' => true, 'message' => 'Username & Password berhasil diubah di database MySQL!']);
             break;
 
+        case 'addGuru':
+            $username = trim($args[1] ?? '');
+            $password = trim($args[2] ?? 'guru123');
+            $nip = trim($args[3] ?? '');
+            $nama = trim($args[4] ?? $username);
+            $jabatan = trim($args[5] ?? 'Guru Mata Pelajaran');
+            $noHp = trim($args[6] ?? '-');
+
+            $st = $pdo->prepare("INSERT INTO guru (nip, nama, jabatan, username, password, no_hp) VALUES (?, ?, ?, ?, ?, ?)");
+            $st->execute([$nip ?: $username, $nama, $jabatan, $username, $password, $noHp]);
+            $stU = $pdo->prepare("INSERT INTO users (username, password, role, nip, nama, no_hp) VALUES (?, ?, 'guru', ?, ?, ?)");
+            $stU->execute([$username, $password, $nip ?: $username, $nama, $noHp]);
+            echo json_encode(['success' => true, 'message' => "Guru $nama berhasil ditambahkan."]);
+            break;
+
+        case 'updateGuru':
+            $oldU = trim($args[1] ?? '');
+            $newU = trim($args[2] ?? '');
+            $password = trim($args[3] ?? '');
+            $nip = trim($args[4] ?? '');
+            $nama = trim($args[5] ?? $newU);
+            $jabatan = trim($args[6] ?? 'Guru Mata Pelajaran');
+            $noHp = trim($args[7] ?? '-');
+
+            $st = $pdo->prepare("UPDATE guru SET username = ?, password = IF(? != '', ?, password), nip = ?, nama = ?, jabatan = ?, no_hp = ? WHERE username = ? OR nip = ?");
+            $st->execute([$newU, $password, $password, $nip, $nama, $jabatan, $noHp, $oldU, $oldU]);
+            $stU = $pdo->prepare("UPDATE users SET username = ?, password = IF(? != '', ?, password), nip = ?, nama = ?, no_hp = ? WHERE username = ? OR nip = ?");
+            $stU->execute([$newU, $password, $password, $nip, $nama, $noHp, $oldU, $oldU]);
+            echo json_encode(['success' => true, 'message' => "Data Guru $nama berhasil diperbarui."]);
+            break;
+
+        case 'deleteGuru':
+            $username = trim($args[1] ?? '');
+            $st = $pdo->prepare("DELETE FROM guru WHERE username = ? OR nip = ?");
+            $st->execute([$username, $username]);
+            $stU = $pdo->prepare("DELETE FROM users WHERE username = ? OR nip = ?");
+            $stU->execute([$username, $username]);
+            echo json_encode(['success' => true, 'message' => "Akun guru $username berhasil dihapus."]);
+            break;
+
+        case 'addTendik':
+            $username = trim($args[1] ?? '');
+            $password = trim($args[2] ?? 'tendik123');
+            $nip = trim($args[3] ?? '');
+            $nama = trim($args[4] ?? $username);
+            $jabatan = trim($args[5] ?? 'Staf Kependidikan');
+            $noHp = trim($args[6] ?? '-');
+
+            $st = $pdo->prepare("INSERT INTO tendik (nip, nama, jabatan, username, password, no_hp) VALUES (?, ?, ?, ?, ?, ?)");
+            $st->execute([$nip ?: $username, $nama, $jabatan, $username, $password, $noHp]);
+            $stU = $pdo->prepare("INSERT INTO users (username, password, role, nip, nama, no_hp) VALUES (?, ?, 'tendik', ?, ?, ?)");
+            $stU->execute([$username, $password, $nip ?: $username, $nama, $noHp]);
+            echo json_encode(['success' => true, 'message' => "Tendik $nama berhasil ditambahkan."]);
+            break;
+
+        case 'updateTendik':
+            $oldU = trim($args[1] ?? '');
+            $newU = trim($args[2] ?? '');
+            $password = trim($args[3] ?? '');
+            $nip = trim($args[4] ?? '');
+            $nama = trim($args[5] ?? $newU);
+            $jabatan = trim($args[6] ?? 'Staf Kependidikan');
+            $noHp = trim($args[7] ?? '-');
+
+            $st = $pdo->prepare("UPDATE tendik SET username = ?, password = IF(? != '', ?, password), nip = ?, nama = ?, jabatan = ?, no_hp = ? WHERE username = ? OR nip = ?");
+            $st->execute([$newU, $password, $password, $nip, $nama, $jabatan, $noHp, $oldU, $oldU]);
+            $stU = $pdo->prepare("UPDATE users SET username = ?, password = IF(? != '', ?, password), nip = ?, nama = ?, no_hp = ? WHERE username = ? OR nip = ?");
+            $stU->execute([$newU, $password, $password, $nip, $nama, $noHp, $oldU, $oldU]);
+            echo json_encode(['success' => true, 'message' => "Data Tendik $nama berhasil diperbarui."]);
+            break;
+
+        case 'deleteTendik':
+            $username = trim($args[1] ?? '');
+            $st = $pdo->prepare("DELETE FROM tendik WHERE username = ? OR nip = ?");
+            $st->execute([$username, $username]);
+            $stU = $pdo->prepare("DELETE FROM users WHERE username = ? OR nip = ?");
+            $stU->execute([$username, $username]);
+            echo json_encode(['success' => true, 'message' => "Data tendik $username berhasil dihapus."]);
+            break;
+
+        case 'addSiswa':
+            $data = $args[1] ?? [];
+            $st = $pdo->prepare("INSERT INTO siswa (nama, nisn, jenis_kelamin, tanggal_lahir, agama, nama_ayah, nama_ibu, no_hp, kelas, alamat) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $st->execute([
+                $data['nama'] ?? '',
+                $data['nisn'] ?? '',
+                $data['jenisKelamin'] ?? 'Laki-laki',
+                $data['tanggalLahir'] ?? '2008-01-01',
+                $data['agama'] ?? 'Islam',
+                $data['namaAyah'] ?? '-',
+                $data['namaIbu'] ?? '-',
+                $data['noHp'] ?? '-',
+                $data['kelas'] ?? 'X MIPA 1',
+                $data['alamat'] ?? 'Lhoksukon'
+            ]);
+            echo json_encode(['success' => true, 'message' => "Siswa " . ($data['nama'] ?? '') . " berhasil ditambahkan."]);
+            break;
+
+        case 'updateSiswa':
+            $oldNisn = trim($args[1] ?? '');
+            $data = $args[2] ?? [];
+            $st = $pdo->prepare("UPDATE siswa SET nama = ?, nisn = ?, jenis_kelamin = ?, tanggal_lahir = ?, agama = ?, nama_ayah = ?, nama_ibu = ?, no_hp = ?, kelas = ?, alamat = ? WHERE nisn = ?");
+            $st->execute([
+                $data['nama'] ?? '',
+                $data['nisn'] ?? '',
+                $data['jenisKelamin'] ?? 'Laki-laki',
+                $data['tanggalLahir'] ?? '2008-01-01',
+                $data['agama'] ?? 'Islam',
+                $data['namaAyah'] ?? '-',
+                $data['namaIbu'] ?? '-',
+                $data['noHp'] ?? '-',
+                $data['kelas'] ?? 'X MIPA 1',
+                $data['alamat'] ?? 'Lhoksukon',
+                $oldNisn
+            ]);
+            echo json_encode(['success' => true, 'message' => "Data Siswa berhasil diperbarui."]);
+            break;
+
+        case 'deleteSiswa':
+            $nisn = trim($args[1] ?? '');
+            $st = $pdo->prepare("DELETE FROM siswa WHERE nisn = ?");
+            $st->execute([$nisn]);
+            echo json_encode(['success' => true, 'message' => "Data siswa NISN $nisn berhasil dihapus."]);
+            break;
+
         case 'importSiswaBulk':
             $dataArray = $args[0] ?? [];
             $added = 0;
