@@ -1361,7 +1361,19 @@
     const BackendAPI = {
       login: async (username, password, nisn) => {
         const phpRes = await callPhpApi('login', username, password, nisn);
-        if (phpRes && phpRes.success) return phpRes;
+        if (phpRes && phpRes.success) {
+          const u = phpRes.user || phpRes;
+          return {
+            success: true,
+            role: String(u.role || 'siswa').toLowerCase(),
+            username: u.username || u.nisn || '',
+            nama: u.nama || u.username || '',
+            nip: u.nip || '-',
+            noHp: u.noHp || u.no_hp || '-',
+            kelas: u.kelas || '',
+            token: u.token || ('tok_' + (u.username || u.nisn))
+          };
+        }
 
         const inputUser = String(username || nisn || '').trim();
         const inputPass = String(password || '').trim();
@@ -2261,8 +2273,17 @@
         if (storedSession) {
             try {
                 const sessionData = JSON.parse(storedSession);
-                if (sessionData && sessionData.success) {
-                    currentUser = sessionData;
+                if (sessionData && (sessionData.success || sessionData.role || (sessionData.user && sessionData.user.role))) {
+                    const u = sessionData.user || sessionData;
+                    currentUser = {
+                        ...u,
+                        role: String(u.role || 'admin').toLowerCase(),
+                        nama: u.nama || u.username || 'Pengguna',
+                        username: u.username || u.nisn || '',
+                        token: u.token || ('tok_' + (u.username || u.nisn)),
+                        success: true
+                    };
+                    localStorage.setItem('absensiAppSession', JSON.stringify(currentUser));
                     document.getElementById('loginPage').classList.add('hidden');
                     document.getElementById('dashboardContainer').classList.remove('hidden');
                     
@@ -2282,6 +2303,7 @@
         document.querySelectorAll('.view-section').forEach(el => {
             el.classList.remove('active');
             el.style.display = 'none'; 
+            el.classList.remove('animate-fade-in');
         });
         
         const target = document.getElementById(viewId);
@@ -2293,8 +2315,13 @@
 
         let title = "Dashboard";
         switch (viewId) {
+            case 'view-admin-dashboard': title = "Dashboard Administrator"; break;
+            case 'view-guru-dashboard': title = "Dashboard Guru"; break;
+            case 'view-tendik-dashboard': title = "Dashboard Tenaga Kependidikan"; break;
+            case 'view-siswa-dashboard': title = "Dashboard Siswa"; break;
             case 'view-data-siswa': title = "Direktori Siswa"; break;
-            case 'view-data-guru': title = "Manajemen Akun Guru"; break;
+            case 'view-data-guru': title = "Manajemen Data Guru"; break;
+            case 'view-data-tendik': title = "Manajemen Data Tendik"; break;
             case 'view-kelola-absen': title = "Jam & Hari Libur"; break;
             case 'view-scanner': title = "Scan Absensi Kamera"; break;
             case 'view-monitoring': title = "Monitoring Realtime"; break;
@@ -2421,8 +2448,16 @@
     function onLoginSuccess(result) {
         hideLoading();
         if (result && result.success) {
-            currentUser = result; 
-            localStorage.setItem('absensiAppSession', JSON.stringify(result));
+            const u = result.user || result;
+            currentUser = {
+                ...u,
+                role: String(u.role || 'admin').toLowerCase(),
+                nama: u.nama || u.username || 'Pengguna',
+                username: u.username || u.nisn || '',
+                token: u.token || ('tok_' + (u.username || u.nisn)),
+                success: true
+            }; 
+            localStorage.setItem('absensiAppSession', JSON.stringify(currentUser));
             document.getElementById('loginPage').classList.add('hidden');
             document.getElementById('dashboardContainer').classList.remove('hidden');
             initDashboard();
@@ -2453,7 +2488,9 @@
     }
 
     function initDashboard() {
-        const name = currentUser.nama || currentUser.username;
+        if (!currentUser) return;
+        currentUser.role = String(currentUser.role || 'admin').toLowerCase();
+        const name = currentUser.nama || currentUser.username || 'Administrator';
         document.getElementById('navUserName').textContent = name;
         document.getElementById('navUserRole').textContent = currentUser.role.toUpperCase();
         document.getElementById('navUserInitial').textContent = name.charAt(0).toUpperCase();
@@ -2501,7 +2538,7 @@
             menuHTML += createItem('Profil & Akun', 'fa-user-cog', 'showUserProfileAndSecurityModal()');
             loadTendikDashboard();
         }
-        else if (currentUser.role === 'siswa') {
+        else { // Siswa / default
             menuHTML += createItem('Dashboard', 'fa-home', 'loadSiswaDashboard()', true);
             menuHTML += createItem('Kartu Saya', 'fa-id-card', 'loadQRCodeSiswa()');
             menuHTML += createItem('Profil & Akun', 'fa-user-cog', 'showUserProfileAndSecurityModal()');

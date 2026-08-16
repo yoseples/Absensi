@@ -53,6 +53,12 @@ try {
             if ($siswa) {
                 echo json_encode([
                     'success' => true,
+                    'role' => 'siswa',
+                    'username' => $siswa['nisn'],
+                    'nama' => $siswa['nama'],
+                    'nisn' => $siswa['nisn'],
+                    'kelas' => $siswa['kelas'],
+                    'token' => md5($siswa['nisn'] . time()),
                     'user' => [
                         'username' => $siswa['nisn'],
                         'nama' => $siswa['nama'],
@@ -72,6 +78,12 @@ try {
             if ($user) {
                 echo json_encode([
                     'success' => true,
+                    'role' => $user['role'],
+                    'username' => $user['username'],
+                    'nama' => $user['nama'],
+                    'nip' => $user['nip'],
+                    'noHp' => $user['no_hp'],
+                    'token' => md5($user['username'] . time()),
                     'user' => [
                         'username' => $user['username'],
                         'nama' => $user['nama'],
