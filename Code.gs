@@ -1804,3 +1804,56 @@ function setupInitialData() {
     return { success: false, message: error.toString() };
   }
 }
+
+function changePassword(token, username, oldPassword, newPassword) {
+  try {
+    const ss = getSpreadsheet();
+    const cleanU = String(username).trim().toLowerCase();
+    
+    // 1. Update Sheet Users
+    const usersSheet = ss.getSheetByName('users');
+    if (usersSheet) {
+      const data = usersSheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        const uName = String(data[i][0]).trim().toLowerCase();
+        const uNip = data[i][4] ? String(data[i][4]).trim().toLowerCase() : '';
+        if (uName === cleanU || uNip === cleanU) {
+          usersSheet.getRange(i + 1, 2).setValue("'" + newPassword);
+          break;
+        }
+      }
+    }
+
+    // 2. Update Sheet Guru
+    const guruSheet = ss.getSheetByName('guru');
+    if (guruSheet) {
+      const data = guruSheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        const gNip = String(data[i][0]).trim().toLowerCase();
+        const gUser = String(data[i][4] || '').trim().toLowerCase();
+        if (gNip === cleanU || gUser === cleanU) {
+          guruSheet.getRange(i + 1, 6).setValue("'" + newPassword);
+          break;
+        }
+      }
+    }
+
+    // 3. Update Sheet Tendik
+    const tendikSheet = ss.getSheetByName('tendik');
+    if (tendikSheet) {
+      const data = tendikSheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        const tNip = String(data[i][0]).trim().toLowerCase();
+        const tUser = String(data[i][4] || '').trim().toLowerCase();
+        if (tNip === cleanU || tUser === cleanU) {
+          tendikSheet.getRange(i + 1, 6).setValue("'" + newPassword);
+          break;
+        }
+      }
+    }
+
+    return { success: true, message: 'Password berhasil diubah di Google Sheet!' };
+  } catch (e) {
+    return { success: false, message: e.toString() };
+  }
+}

@@ -1502,6 +1502,33 @@
         return { success: true, message: 'Pengaturan waktu berhasil disimpan' };
       },
 
+      changePassword: async (token, username, oldPassword, newPassword) => {
+        const targetU = String(username || '').trim().toLowerCase();
+        
+        const userList = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
+        const user = userList.find(u => u.username.toLowerCase() === targetU || (u.nip && String(u.nip) === targetU));
+        if (user) {
+          user.password = newPassword;
+          localStorage.setItem(DB_KEYS.USERS, JSON.stringify(userList));
+        }
+
+        const guruList = JSON.parse(localStorage.getItem(DB_KEYS.GURU) || '[]');
+        const guru = guruList.find(g => (g.username && g.username.toLowerCase() === targetU) || (g.nip && String(g.nip) === targetU));
+        if (guru) {
+          guru.password = newPassword;
+          localStorage.setItem(DB_KEYS.GURU, JSON.stringify(guruList));
+        }
+
+        const tendikList = JSON.parse(localStorage.getItem(DB_KEYS.TENDIK) || '[]');
+        const tendik = tendikList.find(t => (t.username && t.username.toLowerCase() === targetU) || (t.nip && String(t.nip) === targetU));
+        if (tendik) {
+          tendik.password = newPassword;
+          localStorage.setItem(DB_KEYS.TENDIK, JSON.stringify(tendikList));
+        }
+
+        return { success: true, message: 'Password berhasil diubah!' };
+      },
+
       getHariLibur: async () => {
         const list = JSON.parse(localStorage.getItem(DB_KEYS.LIBUR) || '[]');
         return { success: true, data: list };
@@ -2251,22 +2278,26 @@
             menuHTML += createItem('Laporan', 'fa-clipboard-list', 'loadRekapAbsensi()');
             menuHTML += createItem('Kelola Absen', 'fa-calendar-times', 'loadKelolaAbsen()');
             menuHTML += createItem('Scan Absensi', 'fa-qrcode', 'loadScanAbsensi()');
+            menuHTML += createItem('Profil & Akun', 'fa-user-cog', 'showUserProfileAndSecurityModal()');
             loadAdminDashboard();
         } 
         else if (currentUser.role === 'guru') {
             menuHTML += createItem('Dashboard', 'fa-home', 'loadGuruDashboard()', true);
             menuHTML += createItem('Monitoring', 'fa-eye', 'loadMonitoringAbsensi()');
             menuHTML += createItem('Scan Absensi', 'fa-qrcode', 'loadScanAbsensi()');
+            menuHTML += createItem('Profil & Akun', 'fa-user-cog', 'showUserProfileAndSecurityModal()');
             loadGuruDashboard();
         } 
         else if (currentUser.role === 'tendik') {
             menuHTML += createItem('Dashboard', 'fa-home', 'loadTendikDashboard()', true);
             menuHTML += createItem('Kartu Saya', 'fa-id-card', 'loadQRCodeTendik()');
+            menuHTML += createItem('Profil & Akun', 'fa-user-cog', 'showUserProfileAndSecurityModal()');
             loadTendikDashboard();
         }
         else if (currentUser.role === 'siswa') {
             menuHTML += createItem('Dashboard', 'fa-home', 'loadSiswaDashboard()', true);
             menuHTML += createItem('Kartu Saya', 'fa-id-card', 'loadQRCodeSiswa()');
+            menuHTML += createItem('Profil & Akun', 'fa-user-cog', 'showUserProfileAndSecurityModal()');
             loadSiswaDashboard();
         }
 
@@ -4219,6 +4250,156 @@
     function loadQRCodeTendik() {
         if (!currentUser) return;
         loadQRCodeSiswa(currentUser.nip || currentUser.username, currentUser.nama || currentUser.username, currentUser.jabatan || 'Staf Tendik');
+    }
+
+    function showUserProfileAndSecurityModal() {
+        if (!currentUser) return;
+
+        const role = currentUser.role || 'siswa';
+        const nama = currentUser.nama || currentUser.username || '-';
+        const username = currentUser.username || currentUser.nisn || '-';
+        const nipNisn = currentUser.nip || currentUser.nisn || '-';
+        const jabatanKelas = currentUser.jabatan || currentUser.kelas || '-';
+        const noHp = currentUser.noHp || '-';
+
+        showModal(`
+            <div class="bg-white rounded-3xl shadow-2xl overflow-hidden max-w-lg w-full relative animate-slide-up">
+                <!-- Header Card -->
+                <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 text-white relative">
+                    <button onclick="closeModal()" class="absolute top-4 right-4 text-white/70 hover:text-white"><i class="fas fa-times text-lg"></i></button>
+                    <div class="flex items-center space-x-4">
+                        <div class="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 flex items-center justify-center text-2xl font-black text-amber-400 shadow-inner">
+                            ${nama.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <span class="px-2.5 py-0.5 bg-indigo-500/30 border border-indigo-400/30 rounded-full text-[10px] font-extrabold uppercase tracking-wider text-indigo-200">${role} SMANSA</span>
+                            <h3 class="font-extrabold text-lg text-white mt-1 leading-tight">${nama}</h3>
+                            <p class="text-xs text-slate-300 font-mono mt-0.5">${username}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <div class="flex border-b border-slate-100 bg-slate-50/50 text-xs font-bold text-slate-500">
+                    <button onclick="switchProfileModalTab('tab-profile')" id="btnTabProfile" class="flex-1 py-3 border-b-2 border-indigo-600 text-indigo-600 transition flex items-center justify-center gap-2">
+                        <i class="fas fa-user-circle text-sm"></i> Profil Saya
+                    </button>
+                    <button onclick="switchProfileModalTab('tab-security')" id="btnTabSecurity" class="flex-1 py-3 border-b-2 border-transparent hover:text-slate-800 transition flex items-center justify-center gap-2 text-slate-400">
+                        <i class="fas fa-key text-sm"></i> Ganti Password / Keamanan
+                    </button>
+                </div>
+
+                <!-- Content Area -->
+                <div class="p-6">
+                    <!-- Tab Profil -->
+                    <div id="tab-profile-content" class="space-y-3 text-xs">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-bold uppercase">Nama Lengkap</span>
+                                <p class="font-bold text-slate-800 mt-0.5">${nama}</p>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-bold uppercase">Username Login</span>
+                                <p class="font-mono font-bold text-indigo-600 mt-0.5">${username}</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-bold uppercase">${role === 'siswa' ? 'NISN' : 'NIP / NIK'}</span>
+                                <p class="font-mono font-bold text-slate-800 mt-0.5">${nipNisn}</p>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-bold uppercase">${role === 'siswa' ? 'Kelas' : 'Jabatan / Bagian'}</span>
+                                <p class="font-bold text-slate-800 mt-0.5">${jabatanKelas}</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-bold uppercase">No. Handphone</span>
+                                <p class="font-bold text-slate-800 mt-0.5">${noHp}</p>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <span class="text-[10px] text-slate-400 font-bold uppercase">Status Akun</span>
+                                <p class="font-bold text-emerald-600 mt-0.5"><i class="fas fa-check-circle mr-1"></i> Aktif</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab Ganti Password -->
+                    <div id="tab-security-content" class="hidden space-y-4 text-xs">
+                        <form onsubmit="submitChangePassword(event)" class="space-y-3">
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Password Saat Ini</label>
+                                <input type="password" id="userOldPassword" required placeholder="Masukkan password lama" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Password Baru</label>
+                                <input type="password" id="userNewPassword" required minlength="4" placeholder="Masukkan password baru" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Konfirmasi Password Baru</label>
+                                <input type="password" id="userConfirmPassword" required minlength="4" placeholder="Ulangi password baru" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs">
+                            </div>
+                            <div class="pt-2">
+                                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold transition flex items-center justify-center gap-2">
+                                    <i class="fas fa-shield-alt"></i> Simpan Password Baru
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `);
+    }
+
+    function switchProfileModalTab(tabName) {
+        const tabProf = document.getElementById('tab-profile-content');
+        const tabSec = document.getElementById('tab-security-content');
+        const btnProf = document.getElementById('btnTabProfile');
+        const btnSec = document.getElementById('btnTabSecurity');
+
+        if (tabName === 'tab-profile') {
+            tabProf.classList.remove('hidden');
+            tabSec.classList.add('hidden');
+            btnProf.className = 'flex-1 py-3 border-b-2 border-indigo-600 text-indigo-600 transition flex items-center justify-center gap-2 font-bold';
+            btnSec.className = 'flex-1 py-3 border-b-2 border-transparent hover:text-slate-800 transition flex items-center justify-center gap-2 font-bold text-slate-400';
+        } else {
+            tabProf.classList.add('hidden');
+            tabSec.classList.remove('hidden');
+            btnProf.className = 'flex-1 py-3 border-b-2 border-transparent hover:text-slate-800 transition flex items-center justify-center gap-2 font-bold text-slate-400';
+            btnSec.className = 'flex-1 py-3 border-b-2 border-indigo-600 text-indigo-600 transition flex items-center justify-center gap-2 font-bold';
+        }
+    }
+
+    function submitChangePassword(e) {
+        if (e) e.preventDefault();
+        const oldPass = document.getElementById('userOldPassword').value.trim();
+        const newPass = document.getElementById('userNewPassword').value.trim();
+        const confirmPass = document.getElementById('userConfirmPassword').value.trim();
+
+        if (newPass !== confirmPass) {
+            showAlert('error', 'Konfirmasi password baru tidak cocok!');
+            return;
+        }
+
+        showLoading();
+        google.script.run
+            .withSuccessHandler(res => {
+                hideLoading();
+                if (res.success) {
+                    showAlert('success', res.message || 'Password berhasil diubah!');
+                    closeModal();
+                } else {
+                    showAlert('error', res.message || 'Gagal mengubah password.');
+                }
+            })
+            .withFailureHandler(err => {
+                hideLoading();
+                showAlert('error', 'Error ganti password: ' + err);
+            })
+            .changePassword(currentUser.token, currentUser.username || currentUser.nisn, oldPass, newPass);
     }
 
     checkSession();
