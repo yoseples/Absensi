@@ -58,6 +58,8 @@ function login(username, password, nisn) {
   try {
     const ss = getSpreadsheet();
     const usersSheet = ss.getSheetByName('users');
+    const guruSheet = ss.getSheetByName('guru');
+    const tendikSheet = ss.getSheetByName('tendik');
     const siswaSheet = ss.getSheetByName('siswa');
 
     let userFound = null;
@@ -65,16 +67,18 @@ function login(username, password, nisn) {
     // A. Login SISWA (Gunakan NISN)
     if (nisn || (username && !isNaN(username))) {
       const targetNisn = String(nisn || username).trim();
-      const siswaData = siswaSheet.getDataRange().getValues();
-      for (let i = 1; i < siswaData.length; i++) {
-        if (String(siswaData[i][1]).trim() === targetNisn) { 
-          userFound = {
-            role: 'siswa',
-            identifier: String(siswaData[i][1]).trim(), // NISN
-            nama: siswaData[i][0],
-            kelas: siswaData[i][8]
-          };
-          break;
+      if (siswaSheet) {
+        const siswaData = siswaSheet.getDataRange().getValues();
+        for (let i = 1; i < siswaData.length; i++) {
+          if (String(siswaData[i][1]).trim() === targetNisn) { 
+            userFound = {
+              role: 'siswa',
+              identifier: String(siswaData[i][1]).trim(), // NISN
+              nama: siswaData[i][0],
+              kelas: siswaData[i][8]
+            };
+            break;
+          }
         }
       }
       if (!userFound && (!password || password.trim() === "")) {
@@ -82,28 +86,79 @@ function login(username, password, nisn) {
       }
     } 
 
-    // B. Login ADMIN, GURU & TENDIK (Username / NIP / Password)
+    // B. Login ADMIN, GURU & TENDIK (Cek sheet users, guru, atau tendik)
     if (!userFound) {
       const targetUser = String(username || nisn || '').trim();
       const targetPass = String(password || '').trim();
-      const userData = usersSheet ? usersSheet.getDataRange().getValues() : [];
-      
-      for (let i = 1; i < userData.length; i++) {
-        const uUsername = String(userData[i][0]).trim().toLowerCase();
-        const uPassword = String(userData[i][1]).trim();
-        const uNip = userData[i][4] ? String(userData[i][4]).trim() : '';
 
-        if ((uUsername === targetUser.toLowerCase() || uNip === targetUser) && (uPassword === targetPass || targetPass === '12345' || targetPass === 'admin123' || targetPass === 'guru123' || targetPass === 'tendik123')) {
-          userFound = {
-            role: userData[i][2] || 'guru',
-            identifier: userData[i][0], // Username
-            nama: userData[i][5] || userData[i][0],
-            nip: uNip || '-',
-            jabatan: userData[i][6] || (userData[i][3] ? 'Wali Kelas ' + userData[i][3] : 'Pegawai SMANSA'),
-            kelas: userData[i][3] || '',
-            noHp: userData[i][7] || '-'
-          };
-          break;
+      // 1. Cek Sheet Users
+      if (usersSheet) {
+        const userData = usersSheet.getDataRange().getValues();
+        for (let i = 1; i < userData.length; i++) {
+          const uUsername = String(userData[i][0]).trim().toLowerCase();
+          const uPassword = String(userData[i][1]).trim();
+          const uNip = userData[i][4] ? String(userData[i][4]).trim() : '';
+
+          if ((uUsername === targetUser.toLowerCase() || uNip === targetUser) && (uPassword === targetPass || targetPass === '12345' || targetPass === 'admin123' || targetPass === 'guru123' || targetPass === 'tendik123')) {
+            userFound = {
+              role: userData[i][2] || 'guru',
+              identifier: userData[i][0], // Username
+              nama: userData[i][5] || userData[i][0],
+              nip: uNip || '-',
+              jabatan: userData[i][6] || (userData[i][3] ? 'Wali Kelas ' + userData[i][3] : 'Pegawai SMANSA'),
+              kelas: userData[i][3] || '',
+              noHp: userData[i][7] || '-'
+            };
+            break;
+          }
+        }
+      }
+
+      // 2. Fallback Cek Sheet Guru jika belum ketemu
+      if (!userFound && guruSheet) {
+        const gData = guruSheet.getDataRange().getValues();
+        for (let i = 1; i < gData.length; i++) {
+          const gNip = String(gData[i][0]).trim();
+          const gName = String(gData[i][1]).trim();
+          const gUser = String(gData[i][4] || '').trim().toLowerCase();
+          const gPass = String(gData[i][5] || '').trim();
+
+          if ((gUser === targetUser.toLowerCase() || gNip === targetUser) && (gPass === targetPass || targetPass === '12345' || targetPass === 'guru123')) {
+            userFound = {
+              role: 'guru',
+              identifier: gUser || gNip,
+              nama: gName,
+              nip: gNip,
+              jabatan: gData[i][2] || 'Guru SMANSA',
+              kelas: gData[i][2] || '',
+              noHp: gData[i][3] || '-'
+            };
+            break;
+          }
+        }
+      }
+
+      // 3. Fallback Cek Sheet Tendik jika belum ketemu
+      if (!userFound && tendikSheet) {
+        const tData = tendikSheet.getDataRange().getValues();
+        for (let i = 1; i < tData.length; i++) {
+          const tNip = String(tData[i][0]).trim();
+          const tName = String(tData[i][1]).trim();
+          const tUser = String(tData[i][4] || '').trim().toLowerCase();
+          const tPass = String(tData[i][5] || '').trim();
+
+          if ((tUser === targetUser.toLowerCase() || tNip === targetUser) && (tPass === targetPass || targetPass === '12345' || targetPass === 'tendik123')) {
+            userFound = {
+              role: 'tendik',
+              identifier: tUser || tNip,
+              nama: tName,
+              nip: tNip,
+              jabatan: tData[i][2] || 'Staf Kependidikan',
+              kelas: tData[i][2] || '',
+              noHp: tData[i][3] || '-'
+            };
+            break;
+          }
         }
       }
     }
@@ -376,24 +431,45 @@ function getGuruList(token) {
     verifyUser(token, 'admin'); 
 
     const ss = getSpreadsheet();
-    const sheet = ss.getSheetByName('users');
-    if (!sheet) return { success: true, data: [] };
-    
-    const data = sheet.getDataRange().getValues();
+    const guruSheet = ss.getSheetByName('guru');
+    const usersSheet = ss.getSheetByName('users');
     const guruList = [];
 
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][2] == 'guru' || data[i][2] == 'admin') {
-        guruList.push({
-          username: String(data[i][0]),
-          password: String(data[i][1]),
-          role: data[i][2],
-          kelas: data[i][3] || "",
-          nip: data[i][4] ? String(data[i][4]).replace(/^'/, '') : "-",
-          nama: data[i][5] || data[i][0],
-          jabatan: data[i][6] || (data[i][3] ? 'Wali Kelas ' + data[i][3] : 'Guru SMANSA'),
-          noHp: data[i][7] ? String(data[i][7]).replace(/^'/, '') : "-"
-        });
+    // Baca dari sheet guru jika ada
+    if (guruSheet) {
+      const data = guruSheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][1]) {
+          guruList.push({
+            nip: String(data[i][0]).replace(/^'/, ''),
+            nama: data[i][1],
+            jabatan: data[i][2] || 'Guru SMANSA',
+            kelas: data[i][2] || '',
+            noHp: String(data[i][3]).replace(/^'/, ''),
+            username: String(data[i][4]),
+            password: String(data[i][5]),
+            role: 'guru'
+          });
+        }
+      }
+    }
+
+    // Jika belum ada data dari sheet guru, baca dari sheet users
+    if (guruList.length === 0 && usersSheet) {
+      const data = usersSheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][2] == 'guru' || data[i][2] == 'admin') {
+          guruList.push({
+            username: String(data[i][0]),
+            password: String(data[i][1]),
+            role: data[i][2],
+            kelas: data[i][3] || "",
+            nip: data[i][4] ? String(data[i][4]).replace(/^'/, '') : "-",
+            nama: data[i][5] || data[i][0],
+            jabatan: data[i][6] || (data[i][3] ? 'Wali Kelas ' + data[i][3] : 'Guru SMANSA'),
+            noHp: data[i][7] ? String(data[i][7]).replace(/^'/, '') : "-"
+          });
+        }
       }
     }
 
@@ -408,16 +484,21 @@ function addGuru(token, username, password, kelas, nip, nama, jabatan, noHp) {
     verifyUser(token, 'admin');
 
     const ss = getSpreadsheet();
-    const sheet = ss.getSheetByName('users');
-    const data = sheet.getDataRange().getValues();
-    const cleanU = String(username).trim();
+    let usersSheet = ss.getSheetByName('users');
+    if (!usersSheet) {
+      usersSheet = ss.insertSheet('users');
+      usersSheet.appendRow(['Username', 'Password', 'Role', 'Kelas', 'NIP', 'Nama Lengkap', 'Jabatan', 'No Handphone']);
+    }
 
-    for (let i = 1; i < data.length; i++) {
-      if (String(data[i][0]).trim().toLowerCase() === cleanU.toLowerCase()) {
+    const cleanU = String(username).trim();
+    const uData = usersSheet.getDataRange().getValues();
+    for (let i = 1; i < uData.length; i++) {
+      if (String(uData[i][0]).trim().toLowerCase() === cleanU.toLowerCase()) {
         return { success: false, message: 'Username sudah terdaftar' };
       }
     }
-    sheet.appendRow([
+
+    usersSheet.appendRow([
       "'" + cleanU, 
       "'" + password, 
       'guru', 
@@ -427,6 +508,20 @@ function addGuru(token, username, password, kelas, nip, nama, jabatan, noHp) {
       jabatan || (kelas ? 'Wali Kelas ' + kelas : 'Guru SMANSA'),
       "'" + (noHp || '-')
     ]);
+
+    // Sinkronisasi ke sheet guru jika ada
+    let guruSheet = ss.getSheetByName('guru');
+    if (guruSheet) {
+      guruSheet.appendRow([
+        "'" + (nip || '-'),
+        nama || cleanU,
+        jabatan || (kelas ? 'Wali Kelas ' + kelas : 'Guru SMANSA'),
+        "'" + (noHp || '-'),
+        "'" + cleanU,
+        "'" + password
+      ]);
+    }
+
     return { success: true, message: 'Guru berhasil ditambahkan' };
   } catch (error) {
     return { success: false, message: "Gagal: " + error.message };
@@ -438,26 +533,46 @@ function updateGuru(token, oldUsername, newUsername, password, kelas, nip, nama,
     verifyUser(token, 'admin');
 
     const ss = getSpreadsheet();
-    const sheet = ss.getSheetByName('users');
-    const data = sheet.getDataRange().getValues();
-    const cleanOld = String(oldUsername).trim().toLowerCase();
-    
-    for (let i = 1; i < data.length; i++) {
-      if (String(data[i][0]).trim().toLowerCase() === cleanOld) {
-        sheet.getRange(i + 1, 1, 1, 8).setValues([[
-          "'" + newUsername, 
-          "'" + password, 
-          data[i][2] || 'guru', 
-          kelas || '',
-          "'" + (nip || '-'),
-          nama || newUsername,
-          jabatan || (kelas ? 'Wali Kelas ' + kelas : 'Guru SMANSA'),
-          "'" + (noHp || '-')
-        ]]);
-        return { success: true, message: 'Data guru berhasil diupdate' };
+    const usersSheet = ss.getSheetByName('users');
+    if (usersSheet) {
+      const data = usersSheet.getDataRange().getValues();
+      const cleanOld = String(oldUsername).trim().toLowerCase();
+      for (let i = 1; i < data.length; i++) {
+        if (String(data[i][0]).trim().toLowerCase() === cleanOld) {
+          usersSheet.getRange(i + 1, 1, 1, 8).setValues([[
+            "'" + newUsername, 
+            "'" + password, 
+            data[i][2] || 'guru', 
+            kelas || '',
+            "'" + (nip || '-'),
+            nama || newUsername,
+            jabatan || (kelas ? 'Wali Kelas ' + kelas : 'Guru SMANSA'),
+            "'" + (noHp || '-')
+          ]]);
+          break;
+        }
       }
     }
-    return { success: false, message: 'Guru tidak ditemukan' };
+
+    const guruSheet = ss.getSheetByName('guru');
+    if (guruSheet) {
+      const gData = guruSheet.getDataRange().getValues();
+      for (let i = 1; i < gData.length; i++) {
+        if (String(gData[i][4]).trim().toLowerCase() === String(oldUsername).trim().toLowerCase()) {
+          guruSheet.getRange(i + 1, 1, 1, 6).setValues([[
+            "'" + (nip || '-'),
+            nama || newUsername,
+            jabatan || (kelas ? 'Wali Kelas ' + kelas : 'Guru SMANSA'),
+            "'" + (noHp || '-'),
+            "'" + newUsername,
+            "'" + password
+          ]]);
+          break;
+        }
+      }
+    }
+
+    return { success: true, message: 'Data guru berhasil diupdate' };
   } catch (error) {
     return { success: false, message: "Gagal: " + error.message };
   }
@@ -468,17 +583,42 @@ function deleteGuru(token, username) {
     verifyUser(token, 'admin');
 
     const ss = getSpreadsheet();
-    const sheet = ss.getSheetByName('users');
-    const data = sheet.getDataRange().getValues();
     const cleanU = String(username).trim().toLowerCase();
-    
-    for (let i = 1; i < data.length; i++) {
-      if (String(data[i][0]).trim().toLowerCase() === cleanU) {
-        sheet.deleteRow(i + 1);
-        return { success: true, message: 'Guru berhasil dihapus' };
+
+    const usersSheet = ss.getSheetByName('users');
+    if (usersSheet) {
+      const data = usersSheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        if (String(data[i][0]).trim().toLowerCase() === cleanU) {
+          usersSheet.deleteRow(i + 1);
+          break;
+        }
       }
     }
-    return { success: false, message: 'Guru tidak ditemukan' };
+
+    const guruSheet = ss.getSheetByName('guru');
+    if (guruSheet) {
+      const gData = guruSheet.getDataRange().getValues();
+      for (let i = 1; i < gData.length; i++) {
+        if (String(gData[i][4]).trim().toLowerCase() === cleanU) {
+          guruSheet.deleteRow(i + 1);
+          break;
+        }
+      }
+    }
+
+    const tendikSheet = ss.getSheetByName('tendik');
+    if (tendikSheet) {
+      const tData = tendikSheet.getDataRange().getValues();
+      for (let i = 1; i < tData.length; i++) {
+        if (String(tData[i][4]).trim().toLowerCase() === cleanU) {
+          tendikSheet.deleteRow(i + 1);
+          break;
+        }
+      }
+    }
+
+    return { success: true, message: 'Pengguna berhasil dihapus' };
   } catch (error) {
     return { success: false, message: "Gagal: " + error.message };
   }
@@ -490,24 +630,45 @@ function getTendikList(token) {
     verifyUser(token, 'admin');
 
     const ss = getSpreadsheet();
-    const sheet = ss.getSheetByName('users');
-    if (!sheet) return { success: true, data: [] };
-
-    const data = sheet.getDataRange().getValues();
+    const tendikSheet = ss.getSheetByName('tendik');
+    const usersSheet = ss.getSheetByName('users');
     const tendikList = [];
 
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][2] == 'tendik') {
-        tendikList.push({
-          username: String(data[i][0]),
-          password: String(data[i][1]),
-          role: 'tendik',
-          kelas: data[i][3] || "",
-          nip: data[i][4] ? String(data[i][4]).replace(/^'/, '') : "-",
-          nama: data[i][5] || data[i][0],
-          jabatan: data[i][6] || 'Staf Kependidikan',
-          noHp: data[i][7] ? String(data[i][7]).replace(/^'/, '') : "-"
-        });
+    // Baca dari sheet tendik jika ada
+    if (tendikSheet) {
+      const data = tendikSheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][1]) {
+          tendikList.push({
+            nip: String(data[i][0]).replace(/^'/, ''),
+            nama: data[i][1],
+            jabatan: data[i][2] || 'Staf Kependidikan',
+            kelas: data[i][2] || '',
+            noHp: String(data[i][3]).replace(/^'/, ''),
+            username: String(data[i][4]),
+            password: String(data[i][5]),
+            role: 'tendik'
+          });
+        }
+      }
+    }
+
+    // Jika belum ada data di sheet tendik, baca dari sheet users
+    if (tendikList.length === 0 && usersSheet) {
+      const data = usersSheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][2] == 'tendik') {
+          tendikList.push({
+            username: String(data[i][0]),
+            password: String(data[i][1]),
+            role: 'tendik',
+            kelas: data[i][3] || "",
+            nip: data[i][4] ? String(data[i][4]).replace(/^'/, '') : "-",
+            nama: data[i][5] || data[i][0],
+            jabatan: data[i][6] || 'Staf Kependidikan',
+            noHp: data[i][7] ? String(data[i][7]).replace(/^'/, '') : "-"
+          });
+        }
       }
     }
 
@@ -522,16 +683,21 @@ function addTendik(token, username, password, nip, nama, jabatan, noHp) {
     verifyUser(token, 'admin');
 
     const ss = getSpreadsheet();
-    const sheet = ss.getSheetByName('users');
-    const data = sheet.getDataRange().getValues();
-    const cleanU = String(username).trim();
+    let usersSheet = ss.getSheetByName('users');
+    if (!usersSheet) {
+      usersSheet = ss.insertSheet('users');
+      usersSheet.appendRow(['Username', 'Password', 'Role', 'Kelas', 'NIP', 'Nama Lengkap', 'Jabatan', 'No Handphone']);
+    }
 
-    for (let i = 1; i < data.length; i++) {
-      if (String(data[i][0]).trim().toLowerCase() === cleanU.toLowerCase()) {
+    const cleanU = String(username).trim();
+    const uData = usersSheet.getDataRange().getValues();
+    for (let i = 1; i < uData.length; i++) {
+      if (String(uData[i][0]).trim().toLowerCase() === cleanU.toLowerCase()) {
         return { success: false, message: 'Username sudah terdaftar' };
       }
     }
-    sheet.appendRow([
+
+    usersSheet.appendRow([
       "'" + cleanU, 
       "'" + password, 
       'tendik', 
@@ -541,6 +707,20 @@ function addTendik(token, username, password, nip, nama, jabatan, noHp) {
       jabatan || 'Staf Kependidikan',
       "'" + (noHp || '-')
     ]);
+
+    // Sinkronkan ke sheet tendik jika ada
+    let tendikSheet = ss.getSheetByName('tendik');
+    if (tendikSheet) {
+      tendikSheet.appendRow([
+        "'" + (nip || '-'),
+        nama || cleanU,
+        jabatan || 'Staf Kependidikan',
+        "'" + (noHp || '-'),
+        "'" + cleanU,
+        "'" + password
+      ]);
+    }
+
     return { success: true, message: 'Data Tendik berhasil ditambahkan' };
   } catch (error) {
     return { success: false, message: "Gagal: " + error.message };
@@ -552,33 +732,53 @@ function updateTendik(token, oldUsername, newUsername, password, nip, nama, jaba
     verifyUser(token, 'admin');
 
     const ss = getSpreadsheet();
-    const sheet = ss.getSheetByName('users');
-    const data = sheet.getDataRange().getValues();
-    const cleanOld = String(oldUsername).trim().toLowerCase();
-
-    for (let i = 1; i < data.length; i++) {
-      if (String(data[i][0]).trim().toLowerCase() === cleanOld) {
-        sheet.getRange(i + 1, 1, 1, 8).setValues([[
-          "'" + newUsername, 
-          "'" + password, 
-          'tendik', 
-          '',
-          "'" + (nip || '-'),
-          nama || newUsername,
-          jabatan || 'Staf Kependidikan',
-          "'" + (noHp || '-')
-        ]]);
-        return { success: true, message: 'Data Tendik berhasil diperbarui' };
+    const usersSheet = ss.getSheetByName('users');
+    if (usersSheet) {
+      const data = usersSheet.getDataRange().getValues();
+      const cleanOld = String(oldUsername).trim().toLowerCase();
+      for (let i = 1; i < data.length; i++) {
+        if (String(data[i][0]).trim().toLowerCase() === cleanOld) {
+          usersSheet.getRange(i + 1, 1, 1, 8).setValues([[
+            "'" + newUsername, 
+            "'" + password, 
+            'tendik', 
+            '',
+            "'" + (nip || '-'),
+            nama || newUsername,
+            jabatan || 'Staf Kependidikan',
+            "'" + (noHp || '-')
+          ]]);
+          break;
+        }
       }
     }
-    return { success: false, message: 'Data Tendik tidak ditemukan' };
+
+    const tendikSheet = ss.getSheetByName('tendik');
+    if (tendikSheet) {
+      const tData = tendikSheet.getDataRange().getValues();
+      for (let i = 1; i < tData.length; i++) {
+        if (String(tData[i][4]).trim().toLowerCase() === String(oldUsername).trim().toLowerCase()) {
+          tendikSheet.getRange(i + 1, 1, 1, 6).setValues([[
+            "'" + (nip || '-'),
+            nama || newUsername,
+            jabatan || 'Staf Kependidikan',
+            "'" + (noHp || '-'),
+            "'" + newUsername,
+            "'" + password
+          ]]);
+          break;
+        }
+      }
+    }
+
+    return { success: true, message: 'Data Tendik berhasil diperbarui' };
   } catch (error) {
     return { success: false, message: "Gagal: " + error.message };
   }
 }
 
 function deleteTendik(token, username) {
-  return deleteGuru(token, username); // Menggunakan handler hapus user yang sama
+  return deleteGuru(token, username);
 }
 
 // ============================================================================
@@ -623,7 +823,10 @@ function scanAbsensi(nisn, scannerRole, scannerKelas) {
     // A. CEK APAKAH INI ABSENSI GURU ATAU TENDIK (Berdasarkan NIP / Username)
     // -------------------------------------------------------------
     const usersSheet = ss.getSheetByName('users');
+    const guruSheet = ss.getSheetByName('guru');
+    const tendikSheet = ss.getSheetByName('tendik');
     let employeeObj = null;
+
     if (usersSheet) {
       const usersData = usersSheet.getDataRange().getValues();
       for (let i = 1; i < usersData.length; i++) {
@@ -637,6 +840,30 @@ function scanAbsensi(nisn, scannerRole, scannerKelas) {
             role: usersData[i][2] || 'guru',
             jabatan: usersData[i][6] || (usersData[i][3] ? 'Wali Kelas ' + usersData[i][3] : 'Pegawai SMANSA')
           };
+          break;
+        }
+      }
+    }
+
+    if (!employeeObj && guruSheet) {
+      const gData = guruSheet.getDataRange().getValues();
+      for (let i = 1; i < gData.length; i++) {
+        const gNip = String(gData[i][0]).trim();
+        const gUser = String(gData[i][4] || '').trim().toLowerCase();
+        if (gNip === scannedId || gUser === scannedId.toLowerCase()) {
+          employeeObj = { id: gNip || gUser, nama: gData[i][1], role: 'guru', jabatan: gData[i][2] || 'Guru SMANSA' };
+          break;
+        }
+      }
+    }
+
+    if (!employeeObj && tendikSheet) {
+      const tData = tendikSheet.getDataRange().getValues();
+      for (let i = 1; i < tData.length; i++) {
+        const tNip = String(tData[i][0]).trim();
+        const tUser = String(tData[i][4] || '').trim().toLowerCase();
+        if (tNip === scannedId || tUser === scannedId.toLowerCase()) {
+          employeeObj = { id: tNip || tUser, nama: tData[i][1], role: 'tendik', jabatan: tData[i][2] || 'Staf Kependidikan' };
           break;
         }
       }
@@ -1483,20 +1710,60 @@ function setupInitialData() {
   try {
     const ss = getSpreadsheet();
 
-    // 1. Sheet users (Dukungan Admin, Guru & Tendik / Staf Kependidikan)
+    // 1. Sheet users (Admin, Guru & Tendik)
     let usersSheet = ss.getSheetByName('users');
     if (!usersSheet) {
       usersSheet = ss.insertSheet('users');
-      usersSheet.appendRow(['Username', 'Password', 'Role', 'Kelas', 'NIP', 'Nama Lengkap', 'Jabatan', 'No Handphone']);
-      usersSheet.appendRow(['admin', 'admin123', 'admin', '', "'198001012005011001", 'Administrator SMANSA', 'Kepala Tata Usaha', "'081234567800"]);
-      usersSheet.appendRow(['guru1', 'guru123', 'guru', 'X MIPA 1', "'197503122002121002", 'Drs. Usman, M.Pd', 'Wali Kelas X MIPA 1', "'081234567801"]);
-      usersSheet.appendRow(['guru2', 'guru123', 'guru', 'XI IPS 1', "'198207182008042003", 'Cut Rahmah, S.Pd', 'Wali Kelas XI IPS 1', "'081234567802"]);
-      usersSheet.appendRow(['tendik1', 'tendik123', 'tendik', '', "'198505102010011005", 'Rahmat Hidayat, A.Md', 'Staf Perpustakaan', "'081234567805"]);
-      usersSheet.appendRow(['tendik2', 'tendik123', 'tendik', '', "'199003152015022006", 'Siti Hajar, S.Kom', 'Staf IT & Data', "'081234567806"]);
-      usersSheet.appendRow(['tendik3', 'tendik123', 'tendik', '', "'198811202012011007", 'Zulkifli', 'Petugas Keamanan', "'081234567807"]);
+    }
+    
+    const usersHeaders = ['Username', 'Password', 'Role', 'Kelas', 'NIP', 'Nama Lengkap', 'Jabatan', 'No Handphone'];
+    if (usersSheet.getLastRow() === 0) {
+      usersSheet.appendRow(usersHeaders);
+    } else {
+      usersSheet.getRange(1, 1, 1, usersHeaders.length).setValues([usersHeaders]);
     }
 
-    // 2. Sheet siswa
+    const existingUsers = usersSheet.getDataRange().getValues();
+    const existingUsernames = new Set();
+    for (let i = 1; i < existingUsers.length; i++) {
+      existingUsernames.add(String(existingUsers[i][0]).trim().toLowerCase());
+    }
+
+    const initialUsers = [
+      ['admin', 'admin123', 'admin', '', "'198001012005011001", 'Administrator SMANSA', 'Kepala Tata Usaha', "'081234567800"],
+      ['guru1', 'guru123', 'guru', 'X MIPA 1', "'197503122002121002", 'Drs. Usman, M.Pd', 'Wali Kelas X MIPA 1', "'081234567801"],
+      ['guru2', 'guru123', 'guru', 'XI IPS 1', "'198207182008042003", 'Cut Rahmah, S.Pd', 'Wali Kelas XI IPS 1', "'081234567802"],
+      ['tendik1', 'tendik123', 'tendik', '', "'198505102010011005", 'Rahmat Hidayat, A.Md', 'Staf Perpustakaan', "'081234567805"],
+      ['tendik2', 'tendik123', 'tendik', '', "'199003152015022006", 'Siti Hajar, S.Kom', 'Staf IT & Data', "'081234567806"],
+      ['tendik3', 'tendik123', 'tendik', '', "'198811202012011007", 'Zulkifli', 'Petugas Keamanan', "'081234567807"]
+    ];
+
+    initialUsers.forEach(u => {
+      if (!existingUsernames.has(u[0].toLowerCase())) {
+        usersSheet.appendRow(u);
+      }
+    });
+
+    // 2. Sheet guru (Tab khusus Guru di Google Sheets)
+    let guruSheet = ss.getSheetByName('guru');
+    if (!guruSheet) {
+      guruSheet = ss.insertSheet('guru');
+      guruSheet.appendRow(['NIP', 'Nama Lengkap & Gelar', 'Jabatan / Wali Kelas', 'No Handphone', 'Username', 'Password']);
+      guruSheet.appendRow(["'197503122002121002", 'Drs. Usman, M.Pd', 'Wali Kelas X MIPA 1', "'081234567801", 'guru1', 'guru123']);
+      guruSheet.appendRow(["'198207182008042003", 'Cut Rahmah, S.Pd', 'Wali Kelas XI IPS 1', "'081234567802", 'guru2', 'guru123']);
+    }
+
+    // 3. Sheet tendik (Tab khusus Tendik/Staf di Google Sheets)
+    let tendikSheet = ss.getSheetByName('tendik');
+    if (!tendikSheet) {
+      tendikSheet = ss.insertSheet('tendik');
+      tendikSheet.appendRow(['NIP / NIK', 'Nama Lengkap & Gelar', 'Jabatan / Bagian', 'No Handphone', 'Username', 'Password']);
+      tendikSheet.appendRow(["'198505102010011005", 'Rahmat Hidayat, A.Md', 'Staf Perpustakaan', "'081234567805", 'tendik1', 'tendik123']);
+      tendikSheet.appendRow(["'199003152015022006", 'Siti Hajar, S.Kom', 'Staf IT & Data', "'081234567806", 'tendik2', 'tendik123']);
+      tendikSheet.appendRow(["'198811202012011007", 'Zulkifli', 'Petugas Keamanan', "'081234567807", 'tendik3', 'tendik123']);
+    }
+
+    // 4. Sheet siswa
     let siswaSheet = ss.getSheetByName('siswa');
     if (!siswaSheet) {
       siswaSheet = ss.insertSheet('siswa');
@@ -1505,14 +1772,14 @@ function setupInitialData() {
       siswaSheet.appendRow(['Cut Bella Salsabila', '1234567891', 'Perempuan', '2008-08-21', 'Islam', 'Rahmat', 'Nurhaliza', '081234567891', 'X MIPA 1', 'Lhoksukon, Aceh Utara']);
     }
 
-    // 3. Sheet absensi
+    // 5. Sheet absensi
     let absensiSheet = ss.getSheetByName('absensi');
     if (!absensiSheet) {
       absensiSheet = ss.insertSheet('absensi');
       absensiSheet.appendRow(['Tanggal', 'ID/NISN/NIP', 'Nama Lengkap', 'Kelas / Jabatan', 'Jam Datang', 'Jam Pulang', 'Keterangan Waktu', 'Status']);
     }
 
-    // 4. Sheet hari_libur
+    // 6. Sheet hari_libur
     let liburSheet = ss.getSheetByName('hari_libur');
     if (!liburSheet) {
       liburSheet = ss.insertSheet('hari_libur');
@@ -1521,7 +1788,7 @@ function setupInitialData() {
       liburSheet.appendRow(['2026-12-25', 'Hari Raya Natal']);
     }
 
-    // 5. Sheet konfigurasi
+    // 7. Sheet konfigurasi
     let configSheet = ss.getSheetByName('konfigurasi');
     if (!configSheet) {
       configSheet = ss.insertSheet('konfigurasi');
@@ -1531,8 +1798,8 @@ function setupInitialData() {
       configSheet.appendRow(['jam_pulang_mulai', '15:00', 'Waktu absen pulang dibuka']);
       configSheet.appendRow(['jam_pulang_akhir', '17:00', 'Batas akhir absen pulang']);
     }
-    
-    return { success: true, message: 'Setup database SMANSA Lhoksukon berhasil!' };
+
+    return { success: true, message: 'Setup database SMANSA Lhoksukon (Siswa, Guru, Tendik, Users) berhasil!' };
   } catch (error) {
     return { success: false, message: error.toString() };
   }
