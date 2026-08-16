@@ -276,6 +276,103 @@ try {
             echo json_encode(['success' => true, 'message' => 'Username & Password berhasil diubah di database MySQL!']);
             break;
 
+        case 'importSiswaBulk':
+            $dataArray = $args[0] ?? [];
+            $added = 0;
+            $skipped = 0;
+
+            $stmt = $pdo->prepare("INSERT INTO siswa (nama, nisn, jenis_kelamin, tanggal_lahir, agama, nama_ayah, nama_ibu, no_hp, kelas, alamat) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE nama = VALUES(nama), kelas = VALUES(kelas)");
+
+            foreach ($dataArray as $item) {
+                $nisn = trim($item['nisn'] ?? '');
+                $nama = trim($item['nama'] ?? '');
+                if (!$nisn || !$nama) {
+                    $skipped++;
+                    continue;
+                }
+                $stmt->execute([
+                    $nama,
+                    $nisn,
+                    $item['jenisKelamin'] ?? 'Laki-laki',
+                    $item['tanggalLahir'] ?? '2008-01-01',
+                    $item['agama'] ?? 'Islam',
+                    $item['namaAyah'] ?? '-',
+                    $item['namaIbu'] ?? '-',
+                    $item['noHp'] ?? '-',
+                    $item['kelas'] ?? 'X MIPA 1',
+                    $item['alamat'] ?? 'Lhoksukon'
+                ]);
+                $added++;
+            }
+            echo json_encode(['success' => true, 'added' => $added, 'skipped' => $skipped, 'message' => "Import Siswa Selesai. Berhasil: $added, Gagal: $skipped"]);
+            break;
+
+        case 'importGuruBulk':
+            $dataArray = $args[0] ?? [];
+            $added = 0;
+            $skipped = 0;
+
+            $stmtG = $pdo->prepare("INSERT INTO guru (nip, nama, jenis_kelamin, jabatan, username, password, no_hp) VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE nama = VALUES(nama), jabatan = VALUES(jabatan)");
+            $stmtU = $pdo->prepare("INSERT INTO users (username, password, role, nip, nama, no_hp) VALUES (?, ?, 'guru', ?, ?, ?) ON DUPLICATE KEY UPDATE nama = VALUES(nama)");
+
+            foreach ($dataArray as $item) {
+                $nip = trim($item['nip'] ?? '');
+                $nama = trim($item['nama'] ?? '');
+                $username = trim($item['username'] ?? $nip);
+                $password = trim($item['password'] ?? '123456');
+
+                if (!$nip || !$nama || !$username) {
+                    $skipped++;
+                    continue;
+                }
+                $stmtG->execute([
+                    $nip,
+                    $nama,
+                    $item['jenisKelamin'] ?? 'Laki-laki',
+                    $item['jabatan'] ?? 'Guru Mata Pelajaran',
+                    $username,
+                    $password,
+                    $item['noHp'] ?? '-'
+                ]);
+                $stmtU->execute([$username, $password, $nip, $nama, $item['noHp'] ?? '-']);
+                $added++;
+            }
+            echo json_encode(['success' => true, 'added' => $added, 'skipped' => $skipped, 'message' => "Import Guru Selesai. Berhasil: $added, Gagal: $skipped"]);
+            break;
+
+        case 'importTendikBulk':
+            $dataArray = $args[0] ?? [];
+            $added = 0;
+            $skipped = 0;
+
+            $stmtT = $pdo->prepare("INSERT INTO tendik (nip, nama, jenis_kelamin, jabatan, username, password, no_hp) VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE nama = VALUES(nama), jabatan = VALUES(jabatan)");
+            $stmtU = $pdo->prepare("INSERT INTO users (username, password, role, nip, nama, no_hp) VALUES (?, ?, 'tendik', ?, ?, ?) ON DUPLICATE KEY UPDATE nama = VALUES(nama)");
+
+            foreach ($dataArray as $item) {
+                $nip = trim($item['nip'] ?? '');
+                $nama = trim($item['nama'] ?? '');
+                $username = trim($item['username'] ?? $nip);
+                $password = trim($item['password'] ?? '123456');
+
+                if (!$nip || !$nama || !$username) {
+                    $skipped++;
+                    continue;
+                }
+                $stmtT->execute([
+                    $nip,
+                    $nama,
+                    $item['jenisKelamin'] ?? 'Perempuan',
+                    $item['jabatan'] ?? 'Staf Kependidikan',
+                    $username,
+                    $password,
+                    $item['noHp'] ?? '-'
+                ]);
+                $stmtU->execute([$username, $password, $nip, $nama, $item['noHp'] ?? '-']);
+                $added++;
+            }
+            echo json_encode(['success' => true, 'added' => $added, 'skipped' => $skipped, 'message' => "Import Tendik Selesai. Berhasil: $added, Gagal: $skipped"]);
+            break;
+
         default:
             echo json_encode(['success' => true, 'message' => 'API Presensi Digital SMANSA Lhoksukon cPanel MySQL Active']);
             break;
