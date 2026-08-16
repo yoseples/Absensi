@@ -1161,7 +1161,7 @@
                           <div class="p-5 bg-slate-900 text-white text-center flex items-center justify-between">
                               <div>
                                 <h3 class="font-bold text-base tracking-wide">Scanner Absensi Kamera</h3>
-                                <p class="text-[11px] text-slate-400">Arahkan kamera ke QR Code Kartu Pelajar</p>
+                                <p class="text-[11px] text-slate-400">Arahkan kamera ke QR Code Kartu (Siswa / Guru / Tendik)</p>
                               </div>
                               <div class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs">
                                 <i class="fas fa-video"></i>
@@ -3286,31 +3286,57 @@
 
     function loadQRCodeSiswa(nisnParam, namaParam, kelasParam) {
         stopAndBack(false);
-        if(currentUser.role === 'siswa') {
+        if (!currentUser) return;
+        
+        if (currentUser.role === 'admin') {
+            setActiveMenu('Data Siswa');
+        } else {
             setActiveMenu('Kartu Saya');
         } 
         
         showView('view-kartu-siswa');
         const container = document.getElementById('kartuSiswaContainer');
         
-        const namaSiswa = namaParam || currentUser.nama || "Siswa";
-        const nisnSiswa = nisnParam || currentUser.nisn || "1234567890";
-        const kelasSiswa = kelasParam || currentUser.kelas || "X RPL 1";
+        const namaSiswa = namaParam || currentUser.nama || currentUser.username || "Pengguna";
+        const nisnSiswa = nisnParam || currentUser.nisn || currentUser.nip || currentUser.username || "1234567890";
+        const kelasSiswa = kelasParam || currentUser.kelas || currentUser.jabatan || "X RPL 1";
 
+        // Tentukan jenis kartu: Siswa vs Guru vs Tendik
+        let cardTitle = 'KARTU PELAJAR DIGITAL';
+        let idLabel = 'NISN';
+        let badgeColor = 'bg-indigo-50 text-indigo-700 border-indigo-200';
+        let headerGradient = 'from-indigo-600 to-purple-600';
         let backFunction = "loadSiswaDashboard()";
-        if (currentUser.role === 'admin' || currentUser.role === 'guru') {
-            backFunction = "loadDataSiswa()";
+
+        const lowerKelas = String(kelasSiswa).toLowerCase();
+        const isGuru = lowerKelas.includes('guru') || lowerKelas.includes('wali kelas') || lowerKelas.includes('pengajar') || (currentUser.role === 'guru' && !kelasParam);
+        const isTendik = lowerKelas.includes('tendik') || lowerKelas.includes('staf') || lowerKelas.includes('perpustakaan') || lowerKelas.includes('satpam') || lowerKelas.includes('tata usaha') || lowerKelas.includes('keamanan') || (currentUser.role === 'tendik' && !kelasParam);
+
+        if (isGuru) {
+            cardTitle = 'KARTU IDENTITAS GURU';
+            idLabel = 'NIP / ID GURU';
+            badgeColor = 'bg-purple-50 text-purple-700 border-purple-200';
+            headerGradient = 'from-slate-900 to-purple-800';
+            backFunction = (currentUser.role === 'admin') ? "loadDataGuru()" : "loadGuruDashboard()";
+        } else if (isTendik) {
+            cardTitle = 'KARTU IDENTITAS TENDIK';
+            idLabel = 'NIP / NIK STAF';
+            badgeColor = 'bg-amber-50 text-amber-800 border-amber-200';
+            headerGradient = 'from-amber-700 to-amber-900';
+            backFunction = (currentUser.role === 'admin') ? "loadDataTendik()" : "loadTendikDashboard()";
+        } else {
+            if (currentUser.role === 'admin') backFunction = "loadDataSiswa()";
         }
 
         container.innerHTML = `
             <div class="flex justify-center items-center h-full py-10 animate-slide-up">
                 <div class="bg-white rounded-3xl shadow-2xl overflow-hidden w-full max-w-sm relative transform hover:scale-[1.02] transition duration-300 border border-slate-100">
-                    <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 text-white text-center relative overflow-hidden flex flex-col items-center">
+                    <div class="bg-gradient-to-r ${headerGradient} p-6 text-white text-center relative overflow-hidden flex flex-col items-center">
                         <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-10 -mt-10 blur-xl"></div>
-                        <div class="w-14 h-14 bg-white rounded-full p-1 shadow-md mb-2 flex items-center justify-center">
+                        <div class="w-16 h-16 bg-white rounded-full p-1.5 shadow-lg mb-2 flex items-center justify-center border border-white/30">
                             <img src="logo.png" onerror="this.src='favicon.png'" alt="Logo SMANSA Lhoksukon" class="w-full h-full object-contain">
                         </div>
-                        <h2 class="text-lg font-bold tracking-tight">KARTU PELAJAR DIGITAL</h2>
+                        <h2 class="text-lg font-extrabold tracking-tight">${cardTitle}</h2>
                         <p class="text-[10px] tracking-[0.2em] uppercase opacity-90 font-semibold">SMA NEGERI 1 LHOKSUKON</p>
                     </div>
             
@@ -3320,8 +3346,8 @@
                         </div>
     
                         <h3 class="text-xl font-bold text-gray-800 mb-1">${namaSiswa}</h3>
-                        <p class="text-indigo-600 font-mono font-bold text-base mb-3 tracking-wider">${nisnSiswa}</p>
-                        <span class="inline-block px-4 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-xs font-bold shadow-sm">${kelasSiswa}</span>
+                        <p class="text-slate-500 font-mono font-bold text-xs uppercase mb-2">${idLabel}: <span class="text-slate-900 text-sm font-black tracking-wider">${nisnSiswa}</span></p>
+                        <span class="inline-block px-4 py-1.5 ${badgeColor} border rounded-full text-xs font-bold shadow-sm">${kelasSiswa}</span>
                     </div>
                     <div class="p-5 bg-white border-t border-gray-100 flex gap-3">
                         <button onclick="window.print()" class="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold text-xs shadow hover:bg-black transition flex items-center justify-center gap-1.5">
