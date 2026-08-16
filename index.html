@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistem Absensi Pintar Digital</title>
+  <title>Presensi - Sistem Absensi SMA Negeri 1 Lhoksukon</title>
   
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -62,7 +62,7 @@
 <body class="bg-slate-900 font-sans antialiased text-slate-800 selection:bg-indigo-500 selection:text-white overflow-x-hidden">
 
   <!-- ========================================== -->
-  <!-- 1. LOGIN PAGE (SIMPLE & MODERN CARD DESIGN) -->
+  <!-- 1. LOGIN PAGE (SMANSA LHOKSUKON) -->
   <!-- ========================================== -->
   <div id="loginPage" class="relative min-h-screen flex items-center justify-center p-4 sm:p-6 overflow-hidden bg-gradient-to-b from-[#021B79] via-[#052899] to-[#01145A]">
     
@@ -75,17 +75,17 @@
     <!-- Main Card Container -->
     <div class="relative z-10 w-full max-w-[430px] bg-white rounded-[2.5rem] shadow-2xl p-7 sm:p-9 animate-slide-up">
         
-        <!-- Logo Sekolah -->
+        <!-- Logo Sekolah SMANSA Lhoksukon -->
         <div class="flex flex-col items-center text-center">
             <div class="w-20 h-20 bg-white rounded-full p-1.5 shadow-md border border-slate-100 flex items-center justify-center mb-3">
                 <img src="https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=160&auto=format&fit=crop&q=80" 
                      onerror="this.src='https://cdn-icons-png.flaticon.com/512/2997/2997295.png'" 
-                     alt="Logo Sekolah" 
+                     alt="Logo SMANSA Lhoksukon" 
                      class="w-full h-full object-contain rounded-full">
             </div>
             
             <h1 class="text-2xl font-bold text-slate-800 tracking-tight">E-Presensi GPS</h1>
-            <p class="text-xs text-slate-500 mt-0.5">Masuk ke akun Anda</p>
+            <p class="text-xs text-slate-500 mt-0.5">SMANSA LHOKSUKON</p>
         </div>
 
         <!-- Info Badges / Instruction Pills (Sesuai Desain Gambar) -->
@@ -153,11 +153,11 @@
             <button type="button" onclick="quickFillForm('1234567890', '12345')" class="text-emerald-600 font-semibold hover:underline">Siswa</button>
         </div>
 
-        <!-- Footer Text (Sesuai Desain Gambar) -->
+        <!-- Footer Text (Sesuai Permintaan: SMANSA LHOKSUKON) -->
         <div class="mt-6 text-center">
-            <h4 class="text-[11px] font-bold text-slate-700">SMA Negeri 18 Surabaya</h4>
-            <p class="text-[9px] text-slate-400 mt-1 leading-relaxed max-w-[280px] mx-auto">
-                Sistem presensi berbasis GPS dan pengenalan wajah (face detection), dengan notifikasi melalui WhatsApp.
+            <h4 class="text-xs font-bold text-slate-800 tracking-wide">SMA Negeri 1 Lhoksukon</h4>
+            <p class="text-[9px] text-slate-400 mt-1 leading-relaxed max-w-[290px] mx-auto">
+                Sistem Presensi Digital dengan QR Code dan GPS SMA Negeri 1 Lhoksukon.
             </p>
         </div>
 
@@ -178,8 +178,8 @@
                       <i class="fas fa-qrcode text-base"></i>
                   </div>
                   <div class="sidebar-label transition-opacity duration-300 whitespace-nowrap">
-                      <h1 class="font-bold text-sm tracking-wide text-white">E-ABSENSI</h1>
-                      <p class="text-[9px] text-indigo-300 uppercase tracking-wider font-semibold">SMKN Bengkulu</p>
+                      <h1 class="font-bold text-sm tracking-wide text-white">SMANSA LHOKSUKON</h1>
+                      <p class="text-[9px] text-indigo-300 uppercase tracking-wider font-semibold">SMA Negeri 1 Lhoksukon</p>
                   </div>
               </div>
           </div>
@@ -1059,16 +1059,16 @@
 
     const SEED_DATA = {
       siswa: [
-        { nisn: '1234567890', nama: 'Ahmad Fauzi', kelas: 'X RPL 1', jenisKelamin: 'Laki-laki', tanggalLahir: '2008-04-12', agama: 'Islam', namaAyah: 'Bambang', namaIbu: 'Siti Aminah', noHp: '081234567890', alamat: 'Jl. Merdeka No. 45, Bengkulu' },
-        { nisn: '1234567891', nama: 'Bella Salsabila', kelas: 'X RPL 1', jenisKelamin: 'Perempuan', tanggalLahir: '2008-08-21', agama: 'Islam', namaAyah: 'Rahmat', namaIbu: 'Nurhaliza', noHp: '081234567891', alamat: 'Jl. Sudirman No. 12, Bengkulu' },
-        { nisn: '1234567892', nama: 'Christian Pratama', kelas: 'X RPL 2', jenisKelamin: 'Laki-laki', tanggalLahir: '2008-01-15', agama: 'Kristen', namaAyah: 'Yohanes', namaIbu: 'Maria', noHp: '081234567892', alamat: 'Jl. Cendana No. 08, Bengkulu' },
-        { nisn: '1234567893', nama: 'Dinda Rahmawati', kelas: 'XI TKJ 1', jenisKelamin: 'Perempuan', tanggalLahir: '2007-11-03', agama: 'Islam', namaAyah: 'Hasan', namaIbu: 'Fatimah', noHp: '081234567893', alamat: 'Jl. Raflesia No. 19, Bengkulu' },
-        { nisn: '1234567894', nama: 'Eko Prasetyo', kelas: 'XI TKJ 1', jenisKelamin: 'Laki-laki', tanggalLahir: '2007-06-25', agama: 'Islam', namaAyah: 'Santoso', namaIbu: 'Dewi', noHp: '081234567894', alamat: 'Jl. Pahlawan No. 33, Bengkulu' }
+        { nisn: '1234567890', nama: 'Ahmad Fauzi', kelas: 'X MIPA 1', jenisKelamin: 'Laki-laki', tanggalLahir: '2008-04-12', agama: 'Islam', namaAyah: 'Bambang', namaIbu: 'Siti Aminah', noHp: '081234567890', alamat: 'Jl. Medan - Banda Aceh, Lhoksukon, Aceh Utara' },
+        { nisn: '1234567891', nama: 'Cut Bella Salsabila', kelas: 'X MIPA 1', jenisKelamin: 'Perempuan', tanggalLahir: '2008-08-21', agama: 'Islam', namaAyah: 'Rahmat', namaIbu: 'Nurhaliza', noHp: '081234567891', alamat: 'Kec. Lhoksukon, Aceh Utara' },
+        { nisn: '1234567892', nama: 'Muhammad Pratama', kelas: 'X MIPA 2', jenisKelamin: 'Laki-laki', tanggalLahir: '2008-01-15', agama: 'Islam', namaAyah: 'Yusuf', namaIbu: 'Mariam', noHp: '081234567892', alamat: 'Gampong Meunasah Dayah, Lhoksukon' },
+        { nisn: '1234567893', nama: 'Dinda Rahmawati', kelas: 'XI IPS 1', jenisKelamin: 'Perempuan', tanggalLahir: '2007-11-03', agama: 'Islam', namaAyah: 'Hasan', namaIbu: 'Fatimah', noHp: '081234567893', alamat: 'Lhoksukon, Aceh Utara' },
+        { nisn: '1234567894', nama: 'Teuku Eko Prasetyo', kelas: 'XI IPS 1', jenisKelamin: 'Laki-laki', tanggalLahir: '2007-06-25', agama: 'Islam', namaAyah: 'Santoso', namaIbu: 'Dewi', noHp: '081234567894', alamat: 'Lhoksukon, Aceh Utara' }
       ],
       guru: [
         { username: 'admin', password: 'admin123', role: 'admin', kelas: '' },
-        { username: 'guru1', password: 'guru123', role: 'guru', kelas: 'X RPL 1' },
-        { username: 'guru2', password: 'guru123', role: 'guru', kelas: 'XI TKJ 1' }
+        { username: 'guru1', password: 'guru123', role: 'guru', kelas: 'X MIPA 1' },
+        { username: 'guru2', password: 'guru123', role: 'guru', kelas: 'XI IPS 1' }
       ],
       config: {
         jam_masuk_mulai: '06:30',
@@ -1081,7 +1081,7 @@
         { tanggal: '2026-12-25', keterangan: 'Hari Raya Natal' }
       ],
       absensi: [
-        { tanggal: new Date().toISOString().split('T')[0], nisn: '1234567890', nama: 'Ahmad Fauzi', kelas: 'X RPL 1', jamDatang: '06:55', jamPulang: '-', keterangan: 'Tepat Waktu', status: 'Hadir' }
+        { tanggal: new Date().toISOString().split('T')[0], nisn: '1234567890', nama: 'Ahmad Fauzi', kelas: 'X MIPA 1', jamDatang: '06:55', jamPulang: '-', keterangan: 'Tepat Waktu', status: 'Hadir' }
       ]
     };
 
@@ -2946,7 +2946,7 @@
                     <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 text-white text-center relative overflow-hidden">
                         <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-10 -mt-10 blur-xl"></div>
                         <h2 class="text-xl font-bold tracking-tight">KARTU PELAJAR DIGITAL</h2>
-                        <p class="text-[10px] tracking-[0.2em] uppercase opacity-80 mt-1 font-semibold">SMK NEGERI BENGKULU</p>
+                        <p class="text-[10px] tracking-[0.2em] uppercase opacity-80 mt-1 font-semibold">SMA NEGERI 1 LHOKSUKON</p>
                     </div>
             
                     <div class="p-8 text-center bg-gray-50/50">
