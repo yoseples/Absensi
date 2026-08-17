@@ -1,0 +1,101 @@
+╔══════════════════════════════════════════════════════════════════╗
+║   PANDUAN INSTALASI SISTEM ABSENSI DIGITAL                      ║
+║   SMA NEGERI 1 LHOKSUKON - CPANEL HOSTING                      ║
+╚══════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════
+  LANGKAH 1: BUAT DATABASE DI CPANEL
+═══════════════════════════════════════
+
+1. Login ke cPanel hosting Anda
+2. Buka menu "MySQL Databases"
+3. Buat database baru, contoh: absensi_db
+4. Buat user database baru, contoh: absensi_user
+   - Catat password yang Anda buat
+5. Klik "Add User to Database" → centang "ALL PRIVILEGES" → klik "Make Changes"
+
+═══════════════════════════════════════
+  LANGKAH 2: IMPORT DATABASE
+═══════════════════════════════════════
+
+1. Buka menu "phpMyAdmin" di cPanel
+2. Pilih database yang baru dibuat (misal: absensi_db)
+3. Klik tab "Import"
+4. Klik "Choose File" → pilih file "database.sql" dari paket ini
+5. Klik "Go" / "Import"
+6. Tunggu hingga selesai (berisi 902 Siswa, 62 Guru, 15 Tendik)
+
+═══════════════════════════════════════
+  LANGKAH 3: SESUAIKAN KONFIGURASI
+═══════════════════════════════════════
+
+Buka file "api.php" menggunakan File Manager cPanel (atau edit sebelum upload).
+Ubah baris 20-23 sesuai database Anda:
+
+   $db_host = 'localhost';
+   $db_user = 'username_cpanel_anda';     ← Ganti dengan username DB
+   $db_pass = 'password_database_anda';   ← Ganti dengan password DB
+   $db_name = 'nama_database_anda';       ← Ganti dengan nama DB
+
+Contoh:
+   $db_host = 'localhost';
+   $db_user = 'smansa_absen';
+   $db_pass = 'P@ssw0rd123!';
+   $db_name = 'smansa_absensi_db';
+
+═══════════════════════════════════════
+  LANGKAH 4: UPLOAD FILE KE CPANEL
+═══════════════════════════════════════
+
+Upload file-file berikut ke folder public_html (atau subdomain Anda):
+
+   ✅ index.html      → Aplikasi web utama
+   ✅ api.php          → Backend REST API
+   ✅ logo.png         → Logo sekolah
+   ✅ favicon.png      → Ikon browser tab
+
+File "database.sql" TIDAK perlu diupload ke public_html,
+cukup di-import melalui phpMyAdmin saja.
+
+═══════════════════════════════════════
+  LANGKAH 5: AKSES & UJI COBA
+═══════════════════════════════════════
+
+Buka browser dan akses domain/subdomain Anda:
+   https://absensi.smansalhoksukon.sch.id/
+
+Akun default login:
+   ┌──────────┬────────────┬──────────────┐
+   │  Role    │  Username  │   Password   │
+   ├──────────┼────────────┼──────────────┤
+   │  Admin   │  admin     │   admin123   │
+   │  Guru    │  guru1     │   guru123    │
+   │  Tendik  │  tendik1   │   tendik123  │
+   │  Siswa   │  (NISN)    │   (tanpa pw) │
+   └──────────┴────────────┴──────────────┘
+
+═══════════════════════════════════════
+  ISI PAKET ZIP INI
+═══════════════════════════════════════
+
+   📄 index.html              → Aplikasi frontend SPA
+   📄 api.php                 → Backend PHP REST API
+   📄 database.sql            → Schema + data lengkap MySQL
+   🖼️ logo.png               → Logo sekolah
+   🖼️ favicon.png            → Ikon favicon
+   📊 contoh_import_siswa.xlsx → Template import siswa
+   📊 contoh_import_guru.xlsx  → Template import guru
+   📊 contoh_import_tendik.xlsx→ Template import tendik
+   📋 PANDUAN-INSTALASI.txt   → File panduan ini
+
+═══════════════════════════════════════
+  CATATAN PENTING
+═══════════════════════════════════════
+
+• Pastikan hosting mendukung PHP 7.4+ dan MySQL/MariaDB
+• Pastikan ekstensi PDO MySQL aktif di PHP
+• Jika menggunakan subdomain, upload ke folder subdomain tersebut
+• Data yang diimport via aplikasi web akan otomatis tersimpan di MySQL
+• Gunakan tombol "Push ke MySQL" di Dashboard Admin untuk sync manual
+
+Dibuat dengan ❤️ untuk SMA Negeri 1 Lhoksukon
